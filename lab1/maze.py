@@ -74,6 +74,12 @@ class Maze:
                             states[s] = (i, j, i_m, j_m)
                             map[(i, j, i_m, j_m)] = s
                             s += 1
+        states[s] = 'WIN'
+        map['WIN'] = s
+        s += 1
+        states[s] = 'DEAD'
+        map['DEAD'] = s
+        s += 1
         return states, map
 
     def __move(self, state, action):
@@ -91,9 +97,9 @@ class Maze:
                              (self.maze[row, col] == 1)
         # Based on the impossiblity check return the next state.
         if hitting_maze_walls:
-            return state
+            return self.states[state][0], self.states[state][1]
         else:
-            return self.map[(row, col)]
+            return row, col
 
     def __transitions(self):
         """ Computes the transition probabilities for every state action pair.
@@ -104,11 +110,19 @@ class Maze:
         dimensions = (self.n_states, self.n_states, self.n_actions)
         transition_probabilities = np.zeros(dimensions)
 
-        # Compute the transition probabilities. Note that the transitions
-        # are deterministic.
-        for s in range(self.n_states):
+        # Compute the transition probabilities. Note that the transitions are stochastic.
+        for a in range(self.n_actions):
+            transition_probabilities[self.map['WIN'], self.map['WIN'], a] = 1
+            transition_probabilities[self.map['DEAD'], self.map['DEAD'], a] = 1
+        for s in range(self.n_states - 2):
             for a in range(self.n_actions):
-                next_s = self.__move(s, a)
+                # The case of DEAD
+                if self.states[s][0] == self.states[s][2] and self.states[s][1] == self.states[s][3]:
+                    transition_probabilities[s, self.map['DEAD'], a] = 1
+                # The case of WIN
+                elif self.maze[self.states[s]] == 2:
+                    transition_probabilities[s, self.map['WIN'], a] = 1
+                row_1, col_1 = self.__move(s, a)
                 transition_probabilities[next_s, s, a] = 1
         return transition_probabilities
 
@@ -121,7 +135,7 @@ class Maze:
             for s in range(self.n_states):
                 for a in range(self.n_actions):
                     next_s = self.__move(s, a)
-                    # Rewrd for hitting a wall
+                    # Reward for hitting a wall
                     if s == next_s and a != self.STAY:
                         rewards[s, a] = self.IMPOSSIBLE_REWARD
                     # Reward for reaching the exit
