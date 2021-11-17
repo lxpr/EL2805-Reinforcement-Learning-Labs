@@ -1,3 +1,8 @@
+# Ning Wang
+# 19980902-2453
+# David Rommedahl
+# xxxxxxxx-xxxx
+
 import numpy as np
 import maze as mz
 
