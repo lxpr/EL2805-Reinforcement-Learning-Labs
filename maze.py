@@ -446,10 +446,11 @@ def animate_solution(maze, path):
         cell.set_height(1.0/rows)
         cell.set_width(1.0/cols)
 
-    # Update the color at each frame
     for i in range(len(path)):
         grid.get_celld()[(path[i][0:2])].set_facecolor(LIGHT_ORANGE)
         grid.get_celld()[(path[i][0:2])].get_text().set_text('Player')
+        grid.get_celld()[(path[i][2:])].set_facecolor(LIGHT_PURPLE)
+        grid.get_celld()[(path[i][2:])].get_text().set_text('Minotaur')
         if i > 0:
             if path[i][0:2] == path[i-1][0:2]:
                 grid.get_celld()[(path[i][0:2])].set_facecolor(LIGHT_GREEN)
@@ -459,6 +460,9 @@ def animate_solution(maze, path):
                 grid.get_celld()[(path[i-1][0:2])
                                  ].set_facecolor(col_map[maze[path[i-1][0:2]]])
                 grid.get_celld()[(path[i-1][0:2])].get_text().set_text('')
+                grid.get_celld()[(path[i-1][2:])
+                                 ].set_facecolor(col_map[maze[path[i-1][2:]]])
+                grid.get_celld()[(path[i-1][2:])].get_text().set_text('')
         display.display(fig)
         display.clear_output(wait=True)
         time.sleep(1)
