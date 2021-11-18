@@ -462,12 +462,14 @@ def animate_solution(maze, path):
                     grid.get_celld()[(path[i][0:2])].get_text().set_text(
                         'Player is out')
             else:
-                grid.get_celld()[(path[i-1][0:2])
-                                 ].set_facecolor(col_map[maze[path[i-1][0:2]]])
-                grid.get_celld()[(path[i-1][0:2])].get_text().set_text('')
-                grid.get_celld()[(path[i-1][2:])
-                                 ].set_facecolor(col_map[maze[path[i-1][2:]]])
-                grid.get_celld()[(path[i-1][2:])].get_text().set_text('')
+                if path[i-1][0:2] != path[i][2:]:
+                    grid.get_celld()[(path[i-1][0:2])
+                                    ].set_facecolor(col_map[maze[path[i-1][0:2]]])
+                    grid.get_celld()[(path[i-1][0:2])].get_text().set_text('')
+                if path[i-1][2:] != path[i][0:2]:
+                    grid.get_celld()[(path[i-1][2:])
+                                    ].set_facecolor(col_map[maze[path[i-1][2:]]])
+                    grid.get_celld()[(path[i-1][2:])].get_text().set_text('')
         display.display(fig)
         display.clear_output(wait=True)
         time.sleep(1)
