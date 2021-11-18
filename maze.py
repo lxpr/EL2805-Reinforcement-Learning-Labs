@@ -453,9 +453,14 @@ def animate_solution(maze, path):
         grid.get_celld()[(path[i][2:])].get_text().set_text('Minotaur')
         if i > 0:
             if path[i][0:2] == path[i-1][0:2]:
-                grid.get_celld()[(path[i][0:2])].set_facecolor(LIGHT_GREEN)
-                grid.get_celld()[(path[i][0:2])].get_text().set_text(
-                    'Player is out')
+                if path[i][0:2] == path[i][2:]:
+                    grid.get_celld()[(path[i][0:2])].set_facecolor(LIGHT_RED)
+                    grid.get_celld()[(path[i][0:2])].get_text().set_text(
+                        'Player is eaten')
+                else:
+                    grid.get_celld()[(path[i][0:2])].set_facecolor(LIGHT_GREEN)
+                    grid.get_celld()[(path[i][0:2])].get_text().set_text(
+                        'Player is out')
             else:
                 grid.get_celld()[(path[i-1][0:2])
                                  ].set_facecolor(col_map[maze[path[i-1][0:2]]])
