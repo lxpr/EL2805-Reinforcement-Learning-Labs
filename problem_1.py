@@ -14,12 +14,12 @@ maze = np.array([
     [0, 0, 0, 0, 1, 2, 0, 0]
 ])
 
-env = mz.Maze(maze)
-mz.dynamic_programming(env, 15)
+env = mz.Maze(maze, stand_still=True)
+mz.dynamic_programming(env, 30)
 
 
 # Finite horizon
-horizon = 15
+horizon = 30
 # Solve the MDP problem with dynamic programming
 V, policy = mz.dynamic_programming(env, horizon)
 

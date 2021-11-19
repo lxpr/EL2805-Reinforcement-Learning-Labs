@@ -510,7 +510,6 @@ def policy_evaluation(env, policy, horizon):
     # Compute backwards recursion, following the given policy
     for t in range(T-1, -1, -1):
         for s in range(n_states):
-            V[s, t] = r[s, policy[s, t]] + \
-                np.dot(p[:, s, policy[s, t]], V[:, t+1])
+            V[s, t] = np.dot(p[:, s, policy[s, t]], V[:, t+1])
     start_state = env.map[(0, 0, 6, 5)]
-    print("Probability of exiting maze: {}".format(V[start_state, 0]))
+    return V[start_state, 0]
