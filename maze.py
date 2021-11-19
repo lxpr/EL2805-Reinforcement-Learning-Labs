@@ -41,7 +41,7 @@ class Maze:
     GOAL_REWARD = 0
     IMPOSSIBLE_REWARD = -100
 
-    def __init__(self, maze, weights=None, random_rewards=False):
+    def __init__(self, maze, weights=None, random_rewards=False, stand_still=False):
         """ Constructor of the environment Maze.
         """
         self.maze = maze
@@ -49,6 +49,7 @@ class Maze:
         self.states, self.map = self.__states()
         self.n_actions = len(self.actions)
         self.n_states = len(self.states)
+        self.stand_still = stand_still
         self.transition_probabilities = self.__transitions()
 
         self.rewards = self.__rewards(weights=weights,
@@ -129,7 +130,7 @@ class Maze:
             return [state]
         else:
             possible_states = []
-            for i in range(1, len(self.actions)):
+            for i in range(self.stand_still == False, len(self.actions)):
                 minotaur_row = self.states[state][2] + self.actions[i][0]
                 minotaur_col = self.states[state][3] + self.actions[i][1]
                 outside_of_maze = (minotaur_row == -1) or (minotaur_row == self.maze.shape[0]) or \
@@ -452,24 +453,64 @@ def animate_solution(maze, path):
         grid.get_celld()[(path[i][2:])].set_facecolor(LIGHT_PURPLE)
         grid.get_celld()[(path[i][2:])].get_text().set_text('Minotaur')
         if i > 0:
-            if path[i][0:2] == path[i-1][0:2]:
+            if path[i] == path[i-1]:
                 if path[i][0:2] == path[i][2:]:
                     grid.get_celld()[(path[i][0:2])].set_facecolor(LIGHT_RED)
                     grid.get_celld()[(path[i][0:2])].get_text().set_text(
                         'Player is eaten')
-                else:
+                elif path[i][0:2] == (6, 5):
                     grid.get_celld()[(path[i][0:2])].set_facecolor(LIGHT_GREEN)
                     grid.get_celld()[(path[i][0:2])].get_text().set_text(
                         'Player is out')
             else:
-                if path[i-1][0:2] != path[i][2:]:
+                if path[i-1][0:2] != path[i][2:] and path[i-1][0:2] != path[i][0:2]:
                     grid.get_celld()[(path[i-1][0:2])
-                                    ].set_facecolor(col_map[maze[path[i-1][0:2]]])
+                                     ].set_facecolor(col_map[maze[path[i-1][0:2]]])
                     grid.get_celld()[(path[i-1][0:2])].get_text().set_text('')
-                if path[i-1][2:] != path[i][0:2]:
+                if path[i-1][2:] != path[i][0:2] and path[i-1][2:] != path[i][2:]:
                     grid.get_celld()[(path[i-1][2:])
-                                    ].set_facecolor(col_map[maze[path[i-1][2:]]])
+                                     ].set_facecolor(col_map[maze[path[i-1][2:]]])
                     grid.get_celld()[(path[i-1][2:])].get_text().set_text('')
         display.display(fig)
         display.clear_output(wait=True)
         time.sleep(1)
+
+
+def policy_evaluation(env, policy, horizon):
+    """Evaluates a policy based on the probability of reaching the end state given a time horizon.
+
+    :Input env          : The maze environment for which the policy was calculated
+
+    :Input policy       : The calculated policy for the previous maze environment
+
+    :Input horizon      : The time horizon for which the policy should be evaluated
+
+    :Output Value       : The value function for all states of the environment under the provided policy
+    """
+    p = np.copy(env.transition_probabilities)
+    n_states = env.n_states
+    n_actions = env.n_actions
+    T = horizon
+
+    r = np.zeros((n_states, n_actions), dtype=int)
+    # Initiate rewards to be 1 if state is end state and player and minotaur are not in the same
+    # cell, and zero otherwise
+    for s in range(n_states):
+        for a in range(n_actions):
+            if env.states[s][0:2] == (6, 5) and env.states[s][0:2] != env.states[s][2:]:
+                r[s, a] = 1
+
+    # Initialization of the value function for the backwards recursion
+    V = np.zeros((n_states, T+1))
+    # The value of a state at the final time is equal to the instantaneous reward for that state, in
+    # accordance with Bellman's equations
+    a_p = policy[:, T]
+    V[:, T] = r[range(n_states), a_p]
+
+    # Compute backwards recursion, following the given policy
+    for t in range(T-1, -1, -1):
+        for s in range(n_states):
+            V[s, t] = r[s, policy[s, t]] + \
+                np.dot(p[:, s, policy[s, t]], V[:, t+1])
+    start_state = env.map[(0, 0, 6, 5)]
+    print("Probability of exiting maze: {}".format(V[start_state, 0]))

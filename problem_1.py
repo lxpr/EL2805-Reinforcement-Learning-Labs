@@ -15,11 +15,11 @@ maze = np.array([
 ])
 
 env = mz.Maze(maze)
-mz.dynamic_programming(env, 20)
-mz.draw_maze(maze)
+mz.dynamic_programming(env, 15)
+
 
 # Finite horizon
-horizon = 20
+horizon = 15
 # Solve the MDP problem with dynamic programming
 V, policy = mz.dynamic_programming(env, horizon)
 
@@ -28,5 +28,4 @@ method = 'DynProg'
 start = (0, 0, 6, 5)
 path = env.simulate(start, policy, method)
 
-# Show the shortest path
-mz.animate_solution(maze, path)
+mz.policy_evaluation(env, policy, horizon)
