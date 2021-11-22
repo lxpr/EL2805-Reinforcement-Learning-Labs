@@ -41,10 +41,11 @@ class Maze:
     GOAL_REWARD = 0
     IMPOSSIBLE_REWARD = -100
 
-    def __init__(self, maze, weights=None, random_rewards=False, stand_still=False):
+    def __init__(self, maze, weights=None, random_rewards=False, stand_still=False, discount=None):
         """ Constructor of the environment Maze.
         """
         self.maze = maze
+        self.discount = discount
         self.actions = self.__actions()
         self.states, self.map = self.__states()
         self.n_actions = len(self.actions)
@@ -81,13 +82,21 @@ class Maze:
                             states[s] = (i, j, m, n)
                             map[(i, j, m, n)] = s
                             s += 1
+        # Attempt to add absorbing dead state
+        if self.discount != None:
+            states[s] = "Dead"
+            map["Dead"] = s
+            s += 1
         return states, map
 
     def __move(self, state, action) -> int:
         # Returns a random next state out of the possible next states for a (state, action) pair
         next_states = np.where(
             self.transition_probabilities[:, state, action] > 0)[0]
-        return rng.choice(next_states)
+        next_state = rng.choice(next_states)
+        if self.states[next_state] == "Dead":
+            return state
+        return next_state
 
     """
     Original Move Function:
@@ -123,7 +132,8 @@ class Maze:
         # Check if player has reached end state
         end_state = (self.maze[self.states[state][0:2]] == 2)
         # Check if player is dead
-        dead_state = (self.states[state][0:2] == self.states[state][2:])
+        dead_state = (
+            self.states[state][0:2] == self.states[state][2:]) or (self.states[state] == "Dead")
         # If next state is impossible or if the player has reached the end state
         # or if the minotaur has eaten the player, return original state
         if hitting_maze_walls or end_state or dead_state:
@@ -158,7 +168,13 @@ class Maze:
             for a in range(self.n_actions):
                 next_s = self.__possible_transitions(s, a)
                 # next_s = self.__move(s, a)
-                prob = 1/len(next_s)
+                if self.discount != None:
+                    prob = (self.discount/(self.discount+1))/len(next_s)
+                    transition_probabilities[self.map["Dead"],
+                                             s, a] = 1/(self.discount+1)
+
+                else:
+                    prob = 1(len(next_s))
                 for s_prim in next_s:
                     transition_probabilities[s_prim, s, a] = prob
 
@@ -182,6 +198,9 @@ class Maze:
                     # Reward for reaching the exit
                     elif self.maze[self.states[s][0:2]] == 2:
                         rewards[s, a] = self.GOAL_REWARD
+                    # Reward for dying of poisoning
+                    elif self.states[s] == "Dead":
+                        rewards[s, a] = self.IMPOSSIBLE_REWARD
                     # Reward for taking a step to an empty cell that is not the exit
                     else:
                         rewards[s, a] = self.STEP_REWARD
