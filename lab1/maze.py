@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import time
 from IPython import display
 import json
+
 # Implemented methods
 methods = ['DynProg', 'ValIter']
 
@@ -13,13 +14,13 @@ BLACK = '#000000'
 WHITE = '#FFFFFF'
 LIGHT_PURPLE = '#E8D0FF'
 LIGHT_ORANGE = '#FAE0C3'
+YELLOW = '#FFFF00'
 
 # Random number generator object
 rng = np.random.default_rng()
 
 
 class Maze:
-
     # Actions
     STAY = 0
     MOVE_LEFT = 1
@@ -45,7 +46,6 @@ class Maze:
         """ Constructor of the environment Maze.
         Input: life_mean        The mean of a geometric distribution giving the life of the player
                                 after they have been poisoned.
-
         Input: stand_still      Boolean which indicates if the minotaur is allowed to stand still
                                 or not.
         """
@@ -105,6 +105,7 @@ class Maze:
     """
     Original Move Function:
     """
+
     # def __move(self, state, action):
     #     """ Makes a step in the maze, given a current position and an action.
     #         If the action STAY or an inadmissible action is used, the agent stays in place.
@@ -125,14 +126,11 @@ class Maze:
     #         return self.map[(row, col)]
 
     def __possible_transitions(self, state, action) -> list:
-        """Description: Method which takes in a state, action pair and returns the possible next states 
+        """Description: Method which takes in a state, action pair and returns the possible next states
         for this pair. Takes into account the rules which govern the movements of both the
-        player and the minotaur. 
-
+        player and the minotaur.
         Input: state            The current state of the player
-
         Input: action           The action chosen by the player
-
         Output: states          A list containing the possible next state(s) given (s,a)
         """
 
@@ -144,25 +142,25 @@ class Maze:
         player_col = self.states[state][1] + self.actions[action][1]
         # Is the future player position an impossible one ?
         hitting_maze_walls = (player_row == -1) or (player_row == self.maze.shape[0]) or \
-            (player_col == -1) or (player_col == self.maze.shape[1]) or \
-            (self.maze[player_row, player_col] == 1)
+                             (player_col == -1) or (player_col == self.maze.shape[1]) or \
+                             (self.maze[player_row, player_col] == 1)
         # Check if player has reached end state
         end_state = (self.maze[self.states[state][0:2]] == 2)
         # Check if player is eaten
         dead_state = (
-            self.states[state][0:2] == self.states[state][2:])
+                self.states[state][0:2] == self.states[state][2:4])
         # If next state is impossible or if the player has reached the end state
         # or if the minotaur has eaten the player, return original state
         if hitting_maze_walls or end_state or dead_state:
             return [state]
         else:
             possible_states = []
-            for i in range(self.stand_still == False, len(self.actions)):
+            for i in range(self.stand_still is False, len(self.actions)):
                 minotaur_row = self.states[state][2] + self.actions[i][0]
                 minotaur_col = self.states[state][3] + self.actions[i][1]
                 outside_of_maze = (minotaur_row == -1) or (minotaur_row == self.maze.shape[0]) or \
-                    (minotaur_col == -1) or (minotaur_col ==
-                                             self.maze.shape[1])
+                                  (minotaur_col == -1) or (minotaur_col ==
+                                                           self.maze.shape[1])
                 if not outside_of_maze:
                     possible_states.append(
                         self.map[(player_row, player_col, minotaur_row, minotaur_col)])
@@ -190,14 +188,15 @@ class Maze:
                 # not in "Dead" state they will transition to this state with a probability of
                 # 1/life_mean.
                 if self.life_mean is not None and len(next_s) > 1:
-                    prob = ((self.life_mean-1) / self.life_mean) / len(next_s)
+                    prob = ((self.life_mean - 1) / self.life_mean) / len(next_s)
                     transition_probabilities[self.map["Dead"],
                                              s, a] = 1 / self.life_mean
+
                     for s_prim in next_s:
                         if s_prim != self.map["Dead"]:
                             transition_probabilities[s_prim, s, a] = prob
                 else:
-                    prob = 1/len(next_s)
+                    prob = 1 / len(next_s)
                     for s_prim in next_s:
                         transition_probabilities[s_prim, s, a] = prob
 
@@ -213,7 +212,7 @@ class Maze:
                 for a in range(self.n_actions):
                     next_s = self.__possible_transitions(s, a)
                     # Reward for being eaten
-                    if self.states[s][0:2] == self.states[s][2:]:
+                    if self.states[s][0:2] == self.states[s][2:4]:
                         rewards[s, a] = self.IMPOSSIBLE_REWARD
                     # Reward for dying of poisoning is the same
                     # as for walking into walls or being eaten
@@ -237,7 +236,7 @@ class Maze:
                         # With probability 0.5 the reward is
                         r2 = rewards[s, a]
                         # The average reward
-                        rewards[s, a] = 0.5*r1 + 0.5*r2
+                        rewards[s, a] = 0.5 * r1 + 0.5 * r2
         # If the weights are described by a weight matrix
         else:
             for s in range(self.n_states):
@@ -263,7 +262,7 @@ class Maze:
             s = self.map[start]
             # Add the starting position in the maze to the path
             path.append(start)
-            while t < horizon-1:
+            while t < horizon - 1:
                 # Move to next state given the policy and the current state
                 next_s = self.__move(s, policy[s, t])
                 # Add the position in the maze corresponding to the next state
@@ -307,6 +306,136 @@ class Maze:
         print(self.rewards)
 
 
+class MazeWithKey(Maze):
+
+    def __init__(self, maze, weights=None, random_rewards=False, stand_still=False, life_mean=None, epsilon=None):
+        """ Constructor of the environment Maze with Key.
+        Input: life_mean        The mean of a geometric distribution giving the life of the player
+                                after they have been poisoned.
+        Input: stand_still      Boolean which indicates if the minotaur is allowed to stand still
+                                or not.
+        """
+        super(MazeWithKey, self).__init__(maze, weights=weights, random_rewards=random_rewards, stand_still=stand_still, life_mean=life_mean)
+        self.epsilon = epsilon  # Probability of random movement
+        self.states, self.map = self.__states()
+        self.n_states = len(self.states)
+        self.transition_probabilities = self.__transitions()
+
+    def __states(self):
+        states = dict()
+        map = dict()
+        end = False
+        s = 0
+        for i in range(self.maze.shape[0]):
+            for j in range(self.maze.shape[1]):
+                if self.maze[i, j] != 1:
+                    # The introduction of the minotaur could simply be implemented
+                    # by introducing more states (quadratic increase). Each state
+                    # represents the location of the player as well as the location
+                    # of the minotaur
+                    for m in range(self.maze.shape[0]):
+                        for n in range(self.maze.shape[1]):
+                            for k in [0, 1]:
+                                states[s] = (i, j, m, n, k)
+                                map[(i, j, m, n, k)] = s
+                                s += 1
+        # Absorbing dead state. If the player dies by poisoning they will transition to this state
+        if self.life_mean is not None:
+            states[s] = "Dead"
+            map["Dead"] = s
+            s += 1
+        return states, map
+
+    def __possible_transitions(self, state, action) -> list:
+        """Description: Method which takes in a state, action pair and returns the possible next states
+        for this pair. Takes into account the rules which govern the movements of both the
+        player and the minotaur.
+        Input: state            The current state of the player
+        Input: action           The action chosen by the player
+        Output: states          A list containing the possible next state(s) given (s,a)
+        """
+
+        # If the player has died by poisoning and is in the absorbind "Dead" state, this state is returned
+        if self.states[state] == "Dead":
+            return [state]
+        # Compute the future player position given current (state, action)
+        player_row = self.states[state][0] + self.actions[action][0]
+        player_col = self.states[state][1] + self.actions[action][1]
+        # Is the future player position an impossible one ?
+        hitting_maze_walls = (player_row == -1) or (player_row == self.maze.shape[0]) or \
+                             (player_col == -1) or (player_col == self.maze.shape[1]) or \
+                             (self.maze[player_row, player_col] == 1)
+        # Check if player has reached end state (and has the key)
+        end_state = (self.maze[self.states[state][0:2]] == 2 and self.states[state][4] == 1)
+        # Check if player is eaten
+        dead_state = (
+                self.states[state][0:2] == self.states[state][2:4])
+        # If next state is impossible or if the player has reached the end state
+        # or if the minotaur has eaten the player, return original state
+        if hitting_maze_walls or end_state or dead_state:
+            return [state]
+        else:
+            possible_states = []
+            for i in range(self.stand_still is False, len(self.actions)):
+                minotaur_row = self.states[state][2] + self.actions[i][0]
+                minotaur_col = self.states[state][3] + self.actions[i][1]
+                outside_of_maze = (minotaur_row == -1) or (minotaur_row == self.maze.shape[0]) or \
+                                  (minotaur_col == -1) or (minotaur_col ==
+                                                           self.maze.shape[1])
+                if not outside_of_maze:
+                    f = self.states[state][4]
+                    # Check if the player has reached C
+                    if self.maze[player_row, player_col] == 3:
+                        f = 1
+                    possible_states.append(
+                        self.map[(player_row, player_col, minotaur_row, minotaur_col, f)])
+            return possible_states
+
+    def __transitions(self):
+        """ Computes the transition probabilities for every state action pair.
+            :return numpy.tensor transition probabilities: tensor of transition
+            probabilities of dimension S*S*A
+        """
+        # Initialize the transition probailities tensor (S,S,A)
+        dimensions = (self.n_states, self.n_states, self.n_actions)
+        transition_probabilities = np.zeros(dimensions)
+
+        # Compute the transition probabilities. The randomness comes from the minotaur's movements.
+        # self.__move will return a random next state, so for calculating transisiton probabilities
+        # we have to use another method. next_s will also be a list of possible next states, given an
+        # action
+        for s in range(self.n_states):
+            for a in range(self.n_actions):
+                next_s = self.__possible_transitions(s, a)
+                # next_s = self.__move(s, a)
+                # If life_mean is included each move will have a possibility of ending up in 'Dead' state.
+                # If the player is in dead state they should transition to dead state. If the player is
+                # not in "Dead" state they will transition to this state with a probability of
+                # 1/life_mean.
+                if self.life_mean is not None and len(next_s) > 1:
+                    prob = ((self.life_mean - 1) / self.life_mean) / len(next_s) * self.epsilon
+                    transition_probabilities[self.map["Dead"],
+                                             s, a] = 1 / self.life_mean
+                    for s_prim in next_s:
+                        num_towards = (self.states[s][0] == self.states[s][2] or self.states[s][1] == self.states[s][
+                            3]) + 1  # Number of actions moving towards the player
+                        if s_prim != self.map["Dead"]:
+                            transition_probabilities[s_prim, s, a] = prob
+                            # Check if it is moving towards the player
+                            if abs(self.states[s_prim][2] - self.states[s][0]) + abs(
+                                    self.states[s_prim][3] - self.states[s][1]) < abs(
+                                self.states[s][2] - self.states[s][0]) + abs(self.states[s][3] - self.states[s][1]):
+                                transition_probabilities[s_prim, s, a] += ((
+                                                                                       self.life_mean - 1) / self.life_mean) / num_towards * (
+                                                                                      1 - self.epsilon)
+                else:
+                    prob = 1 / len(next_s)
+                    for s_prim in next_s:
+                        transition_probabilities[s_prim, s, a] = prob
+
+        return transition_probabilities
+
+
 def dynamic_programming(env, horizon):
     """ Solves the shortest path problem using dynamic programming
         :input Maze env           : The maze environment in which we seek to
@@ -331,8 +460,8 @@ def dynamic_programming(env, horizon):
     T = horizon
 
     # The variables involved in the dynamic programming backwards recursions
-    V = np.zeros((n_states, T+1))
-    policy = np.zeros((n_states, T+1), dtype=int)
+    V = np.zeros((n_states, T + 1))
+    policy = np.zeros((n_states, T + 1), dtype=int)
     Q = np.zeros((n_states, n_actions))
 
     # Initialization
@@ -341,12 +470,12 @@ def dynamic_programming(env, horizon):
     policy[:, T] = np.argmax(Q, 1)
 
     # The dynamic programming backwards recursion
-    for t in range(T-1, -1, -1):
+    for t in range(T - 1, -1, -1):
         # Update the value function according to the bellman equation
         for s in range(n_states):
             for a in range(n_actions):
                 # Update of the temporary Q values
-                Q[s, a] = r[s, a] + np.dot(p[:, s, a], V[:, t+1])
+                Q[s, a] = r[s, a] + np.dot(p[:, s, a], V[:, t + 1])
         # Update by taking the maximum Q value w.r.t the action a
         V[:, t] = np.max(Q, 1)
         # The optimal action is the one that maximizes the Q function
@@ -365,7 +494,7 @@ def value_iteration(env, gamma, epsilon):
         :return numpy.array policy: Optimal time-varying policy at every state,
                                     dimension S*T
     """
-    # The value iteration algorithm requires the knowledge of :
+    # The value itearation algorithm requires the knowledge of :
     # - Transition probabilities
     # - Rewards
     # - State space
@@ -383,12 +512,12 @@ def value_iteration(env, gamma, epsilon):
     # Iteration counter
     n = 0
     # Tolerance error
-    tol = (1 - gamma) * epsilon/gamma
+    tol = (1 - gamma) * epsilon / gamma
 
     # Initialization of the VI
     for s in range(n_states):
         for a in range(n_actions):
-            Q[s, a] = r[s, a] + gamma*np.dot(p[:, s, a], V)
+            Q[s, a] = r[s, a] + gamma * np.dot(p[:, s, a], V)
     BV = np.max(Q, 1)
 
     # Iterate until convergence
@@ -400,7 +529,7 @@ def value_iteration(env, gamma, epsilon):
         # Compute the new BV
         for s in range(n_states):
             for a in range(n_actions):
-                Q[s, a] = r[s, a] + gamma*np.dot(p[:, s, a], V)
+                Q[s, a] = r[s, a] + gamma * np.dot(p[:, s, a], V)
         BV = np.max(Q, 1)
         # Show error
         # print(np.linalg.norm(V - BV))
@@ -412,10 +541,9 @@ def value_iteration(env, gamma, epsilon):
 
 
 def draw_maze(maze):
-
     # Map a color to each cell in the maze
     col_map = {0: WHITE, 1: BLACK,
-               2: LIGHT_GREEN, -6: LIGHT_RED, -1: LIGHT_RED}
+               2: LIGHT_GREEN, 3: YELLOW, -6: LIGHT_RED, -1: LIGHT_RED}
 
     # Give a color to each cell
     rows, cols = maze.shape
@@ -448,12 +576,11 @@ def draw_maze(maze):
     # Modify the hight and width of the cells in the table
     tc = grid.properties()['children']
     for cell in tc:
-        cell.set_height(1.0/rows)
-        cell.set_width(1.0/cols)
+        cell.set_height(1.0 / rows)
+        cell.set_width(1.0 / cols)
 
 
 def animate_solution(maze, path):
-
     # Map a color to each cell in the maze
     col_map = {0: WHITE, 1: BLACK,
                2: LIGHT_GREEN, -6: LIGHT_RED, -1: LIGHT_RED}
@@ -487,8 +614,8 @@ def animate_solution(maze, path):
     # Modify the hight and width of the cells in the table
     tc = grid.properties()['children']
     for cell in tc:
-        cell.set_height(1.0/rows)
-        cell.set_width(1.0/cols)
+        cell.set_height(1.0 / rows)
+        cell.set_width(1.0 / cols)
 
     # Modifications have been made to the following part of this function to accommodate
     # for the possibility of the minotaur and the player standing still, as well as for
@@ -499,19 +626,19 @@ def animate_solution(maze, path):
     for i in range(len(path)):
         if path[i] == 'Dead':
             if last_idx is None:
-                last_idx = i-1
+                last_idx = i - 1
             grid.get_celld()[(path[last_idx][0:2])
-                             ].set_facecolor(LIGHT_RED)
+            ].set_facecolor(LIGHT_RED)
             grid.get_celld()[(path[last_idx][0:2])].get_text().set_text(
                 'Player is dead')
         else:
             grid.get_celld()[(path[i][0:2])].set_facecolor(LIGHT_ORANGE)
             grid.get_celld()[(path[i][0:2])].get_text().set_text('Player')
-            grid.get_celld()[(path[i][2:])].set_facecolor(LIGHT_PURPLE)
-            grid.get_celld()[(path[i][2:])].get_text().set_text('Minotaur')
+            grid.get_celld()[(path[i][2:4])].set_facecolor(LIGHT_PURPLE)
+            grid.get_celld()[(path[i][2:4])].get_text().set_text('Minotaur')
         if i > 0:
-            if path[i] == path[i-1]:
-                if path[i][0:2] == path[i][2:]:
+            if path[i] == path[i - 1]:
+                if path[i][0:2] == path[i][2:4]:
                     grid.get_celld()[(path[i][0:2])].set_facecolor(LIGHT_RED)
                     grid.get_celld()[(path[i][0:2])].get_text().set_text(
                         'Player is eaten')
@@ -520,14 +647,14 @@ def animate_solution(maze, path):
                     grid.get_celld()[(path[i][0:2])].get_text().set_text(
                         'Player is out')
             elif path[i] != "Dead":
-                if path[i-1][0:2] != path[i][2:] and path[i-1][0:2] != path[i][0:2]:
-                    grid.get_celld()[(path[i-1][0:2])
-                                     ].set_facecolor(col_map[maze[path[i-1][0:2]]])
-                    grid.get_celld()[(path[i-1][0:2])].get_text().set_text('')
-                if path[i-1][2:] != path[i][0:2] and path[i-1][2:] != path[i][2:]:
-                    grid.get_celld()[(path[i-1][2:])
-                                     ].set_facecolor(col_map[maze[path[i-1][2:]]])
-                    grid.get_celld()[(path[i-1][2:])].get_text().set_text('')
+                if path[i - 1][0:2] != path[i][2:4] and path[i - 1][0:2] != path[i][0:2]:
+                    grid.get_celld()[(path[i - 1][0:2])
+                    ].set_facecolor(col_map[maze[path[i - 1][0:2]]])
+                    grid.get_celld()[(path[i - 1][0:2])].get_text().set_text('')
+                if path[i - 1][2:4] != path[i][0:2] and path[i - 1][2:4] != path[i][2:4]:
+                    grid.get_celld()[(path[i - 1][2:4])
+                    ].set_facecolor(col_map[maze[path[i - 1][2:4]]])
+                    grid.get_celld()[(path[i - 1][2:4])].get_text().set_text('')
         display.display(fig)
         display.clear_output(wait=True)
         time.sleep(1)
@@ -535,13 +662,9 @@ def animate_solution(maze, path):
 
 def policy_evaluation(env, policy, horizon):
     """Evaluates a policy based on the probability of reaching the end state given a time horizon.
-
     :Input env          : The maze environment for which the policy was calculated
-
     :Input policy       : The calculated policy for the previous maze environment
-
     :Input horizon      : The time horizon for which the policy should be evaluated
-
     :Output Value       : The value function for all states of the environment under the provided policy
     """
     p = np.copy(env.transition_probabilities)
@@ -554,19 +677,19 @@ def policy_evaluation(env, policy, horizon):
     # cell, and zero otherwise
     for s in range(n_states):
         for a in range(n_actions):
-            if env.states[s][0:2] == (6, 5) and env.states[s][0:2] != env.states[s][2:]:
+            if env.states[s][0:2] == (6, 5) and env.states[s][0:2] != env.states[s][2:4]:
                 r[s, a] = 1
 
     # Initialization of the value function for the backwards recursion
-    V = np.zeros((n_states, T+1))
+    V = np.zeros((n_states, T + 1))
     # The value of a state at the final time is equal to the instantaneous reward for that state, in
     # accordance with Bellman's equations
     a_p = policy[:, T]
     V[:, T] = r[range(n_states), a_p]
 
     # Compute backwards recursion, following the given policy
-    for t in range(T-1, -1, -1):
+    for t in range(T - 1, -1, -1):
         for s in range(n_states):
-            V[s, t] = np.dot(p[:, s, policy[s, t]], V[:, t+1])
+            V[s, t] = np.dot(p[:, s, policy[s, t]], V[:, t + 1])
     start_state = env.map[(0, 0, 6, 5)]
     return V[start_state, 0]
