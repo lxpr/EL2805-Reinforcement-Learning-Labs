@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import time
 from IPython import display
 import json
+# Manhattan distance
+from scipy.spatial.distance import cityblock
 
 # Implemented methods
 methods = ['DynProg', 'ValIter']
@@ -14,6 +16,7 @@ BLACK = '#000000'
 WHITE = '#FFFFFF'
 LIGHT_PURPLE = '#E8D0FF'
 LIGHT_ORANGE = '#FAE0C3'
+ORANGE = '#FFA500'
 YELLOW = '#FFFF00'
 
 # Random number generator object
@@ -320,6 +323,9 @@ class MazeWithKey(Maze):
         self.states, self.map = self.__states()
         self.n_states = len(self.states)
         self.transition_probabilities = self.__transitions()
+        self.rewards = self.__rewards(weights=weights,
+                                      random_rewards=random_rewards)
+
 
     def __states(self):
         states = dict()
@@ -401,7 +407,7 @@ class MazeWithKey(Maze):
         transition_probabilities = np.zeros(dimensions)
 
         # Compute the transition probabilities. The randomness comes from the minotaur's movements.
-        # self.__move will return a random next state, so for calculating transisiton probabilities
+        # self.__move will return a random next state, so for calculating transition probabilities
         # we have to use another method. next_s will also be a list of possible next states, given an
         # action
         for s in range(self.n_states):
@@ -417,14 +423,14 @@ class MazeWithKey(Maze):
                     transition_probabilities[self.map["Dead"],
                                              s, a] = 1 / self.life_mean
                     for s_prim in next_s:
-                        num_towards = (self.states[s][0] == self.states[s][2] or self.states[s][1] == self.states[s][
-                            3]) + 1  # Number of actions moving towards the player
+                        if self.states[s][0] == self.states[s][2] or self.states[s][1] == self.states[s][3]:
+                            num_towards = 1
+                        else:
+                            num_towards = 2
                         if s_prim != self.map["Dead"]:
                             transition_probabilities[s_prim, s, a] = prob
                             # Check if it is moving towards the player
-                            if abs(self.states[s_prim][2] - self.states[s][0]) + abs(
-                                    self.states[s_prim][3] - self.states[s][1]) < abs(
-                                self.states[s][2] - self.states[s][0]) + abs(self.states[s][3] - self.states[s][1]):
+                            if cityblock(self.states[s_prim][2:4], self.states[s][0:2]) < cityblock(self.states[s][2:4], self.states[s][0:2]):
                                 transition_probabilities[s_prim, s, a] += ((
                                                                                        self.life_mean - 1) / self.life_mean) / num_towards * (
                                                                                       1 - self.epsilon)
@@ -434,6 +440,52 @@ class MazeWithKey(Maze):
                         transition_probabilities[s_prim, s, a] = prob
 
         return transition_probabilities
+
+    def __rewards(self, weights=None, random_rewards=None):
+
+        rewards = np.zeros((self.n_states, self.n_actions))
+
+        # If the rewards are not described by a weight matrix
+        if weights is None:
+            for s in range(self.n_states):
+                for a in range(self.n_actions):
+                    next_s = self.__possible_transitions(s, a)
+                    # Reward for being eaten
+                    if self.states[s][0:2] == self.states[s][2:4]:
+                        rewards[s, a] = self.IMPOSSIBLE_REWARD
+                    # Reward for dying of poisoning is the same
+                    # as for walking into walls or being eaten
+                    elif self.states[s] == "Dead":
+                        rewards[s, a] = self.IMPOSSIBLE_REWARD
+                    # Reward for walking into wall
+                    elif len(next_s) == 1 and self.maze[self.states[s][0:2]] != 2:
+                        rewards[s, a] = self.IMPOSSIBLE_REWARD
+                    # Reward for reaching the exit
+                    elif self.maze[self.states[s][0:2]] == 2:
+                        rewards[s, a] = self.GOAL_REWARD
+                    # Reward for taking a step to an empty cell that is not the exit
+                    else:
+                        rewards[s, a] = self.STEP_REWARD
+
+                    # If there exists trapped cells with probability 0.5
+                    if random_rewards and self.maze[self.states[next_s]] < 0:
+                        row, col = self.states[next_s]
+                        # With probability 0.5 the reward is
+                        r1 = (1 + abs(self.maze[row, col])) * rewards[s, a]
+                        # With probability 0.5 the reward is
+                        r2 = rewards[s, a]
+                        # The average reward
+                        rewards[s, a] = 0.5 * r1 + 0.5 * r2
+        # If the weights are described by a weight matrix
+        else:
+            for s in range(self.n_states):
+                for a in range(self.n_actions):
+                    next_s = self.__move(s, a)
+                    i, j = self.states[next_s]
+                    # Simply put the reward as the weights of the next state.
+                    rewards[s, a] = weights[i][j]
+
+        return rewards
 
 
 def dynamic_programming(env, horizon):
@@ -583,7 +635,7 @@ def draw_maze(maze):
 def animate_solution(maze, path):
     # Map a color to each cell in the maze
     col_map = {0: WHITE, 1: BLACK,
-               2: LIGHT_GREEN, -6: LIGHT_RED, -1: LIGHT_RED}
+               2: LIGHT_GREEN, 3: YELLOW, -6: LIGHT_RED, -1: LIGHT_RED}
 
     # Size of the maze
     rows, cols = maze.shape
@@ -632,7 +684,10 @@ def animate_solution(maze, path):
             grid.get_celld()[(path[last_idx][0:2])].get_text().set_text(
                 'Player is dead')
         else:
-            grid.get_celld()[(path[i][0:2])].set_facecolor(LIGHT_ORANGE)
+            if path[i][4] == 0:
+                grid.get_celld()[(path[i][0:2])].set_facecolor(LIGHT_ORANGE)
+            else:
+                grid.get_celld()[(path[i][0:2])].set_facecolor(ORANGE)
             grid.get_celld()[(path[i][0:2])].get_text().set_text('Player')
             grid.get_celld()[(path[i][2:4])].set_facecolor(LIGHT_PURPLE)
             grid.get_celld()[(path[i][2:4])].get_text().set_text('Minotaur')
