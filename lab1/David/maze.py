@@ -150,7 +150,7 @@ class Maze:
         end_state = (self.maze[self.states[state][0:2]] == 2)
         # Check if player is eaten
         dead_state = (
-            self.states[state][0:2] == self.states[state][2:])
+            self.states[state][0:2] == self.states[state][2:4])
         # If next state is impossible or if the player has reached the end state
         # or if the minotaur has eaten the player, return original state
         if hitting_maze_walls or end_state or dead_state:
@@ -213,7 +213,7 @@ class Maze:
                 for a in range(self.n_actions):
                     next_s = self.__possible_transitions(s, a)
                     # Reward for being eaten
-                    if self.states[s][0:2] == self.states[s][2:]:
+                    if self.states[s][0:2] == self.states[s][2:4]:
                         rewards[s, a] = self.IMPOSSIBLE_REWARD
                     # Reward for dying of poisoning is the same
                     # as for walking into walls or being eaten
@@ -507,11 +507,11 @@ def animate_solution(maze, path):
         else:
             grid.get_celld()[(path[i][0:2])].set_facecolor(LIGHT_ORANGE)
             grid.get_celld()[(path[i][0:2])].get_text().set_text('Player')
-            grid.get_celld()[(path[i][2:])].set_facecolor(LIGHT_PURPLE)
-            grid.get_celld()[(path[i][2:])].get_text().set_text('Minotaur')
+            grid.get_celld()[(path[i][2:4])].set_facecolor(LIGHT_PURPLE)
+            grid.get_celld()[(path[i][2:4])].get_text().set_text('Minotaur')
         if i > 0:
             if path[i] == path[i-1]:
-                if path[i][0:2] == path[i][2:]:
+                if path[i][0:2] == path[i][2:4]:
                     grid.get_celld()[(path[i][0:2])].set_facecolor(LIGHT_RED)
                     grid.get_celld()[(path[i][0:2])].get_text().set_text(
                         'Player is eaten')
@@ -520,14 +520,14 @@ def animate_solution(maze, path):
                     grid.get_celld()[(path[i][0:2])].get_text().set_text(
                         'Player is out')
             elif path[i] != "Dead":
-                if path[i-1][0:2] != path[i][2:] and path[i-1][0:2] != path[i][0:2]:
+                if path[i-1][0:2] != path[i][2:4] and path[i-1][0:2] != path[i][0:2]:
                     grid.get_celld()[(path[i-1][0:2])
                                      ].set_facecolor(col_map[maze[path[i-1][0:2]]])
                     grid.get_celld()[(path[i-1][0:2])].get_text().set_text('')
-                if path[i-1][2:] != path[i][0:2] and path[i-1][2:] != path[i][2:]:
-                    grid.get_celld()[(path[i-1][2:])
-                                     ].set_facecolor(col_map[maze[path[i-1][2:]]])
-                    grid.get_celld()[(path[i-1][2:])].get_text().set_text('')
+                if path[i-1][2:4] != path[i][0:2] and path[i-1][2:4] != path[i][2:4]:
+                    grid.get_celld()[(path[i-1][2:4])
+                                     ].set_facecolor(col_map[maze[path[i-1][2:4]]])
+                    grid.get_celld()[(path[i-1][2:4])].get_text().set_text('')
         display.display(fig)
         display.clear_output(wait=True)
         time.sleep(1)
@@ -554,7 +554,7 @@ def policy_evaluation(env, policy, horizon):
     # cell, and zero otherwise
     for s in range(n_states):
         for a in range(n_actions):
-            if env.states[s][0:2] == (6, 5) and env.states[s][0:2] != env.states[s][2:]:
+            if env.states[s][0:2] == (6, 5) and env.states[s][0:2] != env.states[s][2:4]:
                 r[s, a] = 1
 
     # Initialization of the value function for the backwards recursion
