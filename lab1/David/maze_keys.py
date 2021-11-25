@@ -110,12 +110,6 @@ class Maze:
         # Returns a random next state out of the possible next states for a (state, action) pair, based on transition probabilities
         next_states = np.where(
             self.transition_probabilities[:, state, action] > 0)[0]
-        print(self.states[state])
-        print(action)
-        for s in next_states:
-            print(self.states[s])
-        print(self.transition_probabilities[next_states, state, action])
-        print(sum(self.transition_probabilities[next_states, state, action]))
         next_state = rng.choice(
             next_states, p=self.transition_probabilities[next_states, state, action])
         return next_state
