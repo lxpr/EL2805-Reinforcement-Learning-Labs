@@ -11,7 +11,7 @@ def qlearning(env, epsilon, alpha=None, N=50000, gamma=1):
     Input epsilon:      Parameter which tells the Q-Learning algorithm's behaviour policy
                         with which probability to act greedy, as well as to explore
 
-    Input alpha:        Step size, if set to a constant value
+    Input alpha:        Step size exponent, if set to a different value than 2/3
 
 
     Input N:            Number of iterations of the algorithm
@@ -63,13 +63,15 @@ def qlearning(env, epsilon, alpha=None, N=50000, gamma=1):
                            None else 1/(n_sa[s, a]**alpha))
 
             # Policy improvement
-            Q[s, a] += alpha*(r_n + gamma*max(Q[next_s, :]) - Q[s, a])
+            Q[s, a] += step_size*(r_n + gamma*max(Q[next_s, :]) - Q[s, a])
 
             # Move on to next state
             s = next_s
         V_convergence[n] = max(Q[env.map[(0, 0, 6, 5, 0)], :])
     # The policy returned by the function is the greedy policy wrt Q
     policy = np.argmax(Q, 1)
+    print("Nr of times initial state has been visited")
+    print(n_sa[env.map[(0, 0, 6, 5, 0)], :])
     return Q, policy, V_convergence
 
 
