@@ -286,7 +286,11 @@ class Maze:
             # to the path
             path.append(self.states[next_s])
             # Loop while state is not the goal state or "Dead" state
-            while self.states[s] != "Dead" and self.maze[self.states[s][0:2]] != 2:
+            while self.states[s] != "Dead":
+                if self.maze[self.states[s][0:2]] == 2 and len(self.states[s]) == 4:
+                    break
+                if self.maze[self.states[s][0:2]] == 2 and self.states[s][4] == 1:
+                    break
                 # Update state
                 s = next_s
                 # Move to next state given the policy and the current state
@@ -684,10 +688,13 @@ def animate_solution(maze, path):
             grid.get_celld()[(path[last_idx][0:2])].get_text().set_text(
                 'Player is dead')
         else:
-            if path[i][4] == 0:
-                grid.get_celld()[(path[i][0:2])].set_facecolor(LIGHT_ORANGE)
+            if len(path[i]) == 5:
+                if path[i][4] == 0:
+                    grid.get_celld()[(path[i][0:2])].set_facecolor(LIGHT_ORANGE)
+                else:
+                    grid.get_celld()[(path[i][0:2])].set_facecolor(ORANGE)
             else:
-                grid.get_celld()[(path[i][0:2])].set_facecolor(ORANGE)
+                grid.get_celld()[(path[i][0:2])].set_facecolor(LIGHT_ORANGE)
             grid.get_celld()[(path[i][0:2])].get_text().set_text('Player')
             grid.get_celld()[(path[i][2:4])].set_facecolor(LIGHT_PURPLE)
             grid.get_celld()[(path[i][2:4])].get_text().set_text('Minotaur')
@@ -698,8 +705,10 @@ def animate_solution(maze, path):
                     grid.get_celld()[(path[i][0:2])].get_text().set_text(
                         'Player is eaten')
                 elif path[i][0:2] == (6, 5):
-                    grid.get_celld()[(path[i][0:2])].set_facecolor(LIGHT_GREEN)
-                    grid.get_celld()[(path[i][0:2])].get_text().set_text(
+                    print(len(path[i]))
+                    if len(path[i]) == 4 or path[i][4] == 1:
+                        grid.get_celld()[(path[i][0:2])].set_facecolor(LIGHT_GREEN)
+                        grid.get_celld()[(path[i][0:2])].get_text().set_text(
                         'Player is out')
             elif path[i] != "Dead":
                 if path[i - 1][0:2] != path[i][2:4] and path[i - 1][0:2] != path[i][0:2]:
