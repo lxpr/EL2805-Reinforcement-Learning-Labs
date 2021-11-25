@@ -183,10 +183,12 @@ class Maze:
                     (minotaur_col == -1) or (minotaur_col ==
                                              self.maze.shape[1])
                 if not outside_of_maze:
-                    possible_states.append(
-                        self.map[(player_row, player_col, minotaur_row, minotaur_col, 0)])
-                    possible_states.append(
-                        self.map[(player_row, player_col, minotaur_row, minotaur_col, 1)])
+                    if self.states[state][-1] == 0 and self.states[state][0:2] != (0, 7):
+                        possible_states.append(
+                            self.map[(player_row, player_col, minotaur_row, minotaur_col, 0)])
+                    else:
+                        possible_states.append(
+                            self.map[(player_row, player_col, minotaur_row, minotaur_col, 1)])
             return possible_states
 
     def __transitions(self):
@@ -216,122 +218,65 @@ class Maze:
                 # If the player is in dead state they should transition to dead state. If the player is
                 # not in "Dead" state they will transition to this state with a probability of
                 # 1/life_mean.
-                if self.life_mean != None and (len(next_s)/2) > 1:
+                if self.life_mean != None and len(next_s) > 1:
                     transition_probabilities[self.map["Dead"],
                                              s, a] = 1/(self.life_mean)
                     # This is the uniform probability of transitioning into
                     # a state which is not the "Dead" state
                     prob = ((self.life_mean-1)/(self.life_mean)) / \
-                        (len(next_s)/2)
+                        len(next_s)
+
+                    # Distance between player and minotaur in possible new states
+                    dist = [cityblock(
+                        self.states[s_prim][0:2], self.states[s_prim][2:4]) for s_prim in next_s]
+                    # The states corresponding to the minotaur moving towards the player
+                    min_dist = [next_s[i] for i in range(
+                        len(next_s)) if dist[i] == min(dist)]
 
                     for s_prim in next_s:
                         if s_prim != self.map["Dead"]:
-                            # If the keys have not been found
-                            if self.states[s][-1] == 0:
-                                # If the player is not in position C
-                                if self.states[s][0:2] != (0, 7):
-                                    # If the next state is one where the keys have not been found
-                                    if self.states[s_prim][-1] == 0:
-                                        # If the player and the minotaur are side-by-side before the player moves
-                                        # the best the minotaur can do is to stay as close after the move
-                                        if cityblock(self.states[s][0:2], self.states[s][2:4]) == 1:
-                                            if self.states[s_prim][0] != self.states[s][2] and self.states[s_prim][1] != self.states[s][3]:
-                                                if cityblock(self.states[s_prim][0:2], self.states[s_prim][2:4]) == 1:
-                                                    towards = (
-                                                        1-(1/self.life_mean))/2
-                                                else:
-                                                    towards = 0
-                                            elif cityblock(self.states[s_prim][0:2], self.states[s_prim][2:4]) == 1:
-                                                towards = (
-                                                    1-(1/self.life_mean))
-                                            else:
-                                                towards = 0
-                                            # If the player and the minotaur are not on the same row or column
-                                            # there are two ways for the minotaur to move towards the player,
-                                            # else there is only one
-                                        elif self.states[s_prim][0] != self.states[s][2] and self.states[s_prim][1] != self.states[s][3]:
-                                            # Calculate if next state puts player and minotaur closer to each other
-                                            if cityblock(self.states[s_prim][0:2], self.states[s_prim][2:4]) < cityblock(self.states[s_prim][0:2], self.states[s][2:4]):
-                                                towards = (
-                                                    1-(1/self.life_mean))/2
-                                            else:
-                                                towards = 0
-                                        elif cityblock(self.states[s_prim][0:2], self.states[s_prim][2:4]) < cityblock(self.states[s_prim][0:2], self.states[s][2:4]):
-                                            towards = 1 - (1/self.life_mean)
-                                        else:
-                                            towards = 0
-                                        # Total transition probability to s_prim is given by marginalizing over the
-                                        # two cases when the minotaur moves deterministically and randomly
-                                        transition_probabilities[s_prim,
-                                                                 s, a] = towards*(1-self.prob_random) + prob*self.prob_random
-                                    # If the next state is one where the keys have been found
-                                elif self.states[s_prim][-1] == 1:
-                                    # If the player and the minotaur are side-by-side before the player moves
-                                    # the best the minotaur can do is to stay as close after the move
-                                    if cityblock(self.states[s][0:2], self.states[s][2:4]) == 1:
-                                        if self.states[s_prim][0] != self.states[s][2] and self.states[s_prim][1] != self.states[s][3]:
-                                            if cityblock(self.states[s_prim][0:2], self.states[s_prim][2:4]) == 1:
-                                                towards = (
-                                                    1-(1/self.life_mean))/2
-                                            else:
-                                                towards = 0
-                                        elif cityblock(self.states[s_prim][0:2], self.states[s_prim][2:4]) == 1:
-                                            towards = (
-                                                1-(1/self.life_mean))
-                                        else:
-                                            towards = 0
-                                        # If the player and the minotaur are not on the same row or column
-                                        # there are two ways for the minotaur to move towards the player,
-                                        # else there is only one
-                                    elif self.states[s_prim][0] != self.states[s][2] and self.states[s_prim][1] != self.states[s][3]:
-                                        # Calculate if next state puts player and minotaur closer to each other
-                                        if cityblock(self.states[s_prim][0:2], self.states[s_prim][2:4]) < cityblock(self.states[s_prim][0:2], self.states[s][2:4]):
-                                            towards = (
-                                                1-(1/self.life_mean))/2
-                                        else:
-                                            towards = 0
-                                    elif cityblock(self.states[s_prim][0:2], self.states[s_prim][2:4]) < cityblock(self.states[s_prim][0:2], self.states[s][2:4]):
-                                        towards = 1 - (1/self.life_mean)
-                                    else:
-                                        towards = 0
-                                    # Total transition probability to s_prim is given by marginalizing over the
-                                    # two cases when the minotaur moves deterministically and randomly
-                                    transition_probabilities[s_prim,
-                                                             s, a] = towards*(1-self.prob_random) + prob*self.prob_random
-                            # If the next state is one where the keys have been found
-                            elif self.states[s_prim][-1] == 1:
-                                # If the player and the minotaur are side-by-side before the player moves
-                                # the best the minotaur can do is to stay as close after the move
-                                if cityblock(self.states[s][0:2], self.states[s][2:4]) == 1:
-                                    if self.states[s_prim][0] != self.states[s][2] and self.states[s_prim][1] != self.states[s][3]:
-                                        if cityblock(self.states[s_prim][0:2], self.states[s_prim][2:4]) == 1:
-                                            towards = (
-                                                1-(1/self.life_mean))/2
-                                        else:
-                                            towards = 0
-                                    elif cityblock(self.states[s_prim][0:2], self.states[s_prim][2:4]) == 1:
-                                        towards = (
-                                            1-(1/self.life_mean))
-                                    else:
-                                        towards = 0
-                                    # If the player and the minotaur are not on the same row or column
-                                    # there are two ways for the minotaur to move towards the player,
-                                    # else there is only one
-                                elif self.states[s_prim][0] != self.states[s][2] and self.states[s_prim][1] != self.states[s][3]:
-                                    # Calculate if next state puts player and minotaur closer to each other
-                                    if cityblock(self.states[s_prim][0:2], self.states[s_prim][2:4]) < cityblock(self.states[s_prim][0:2], self.states[s][2:4]):
-                                        towards = (
-                                            1-(1/self.life_mean))/2
-                                    else:
-                                        towards = 0
-                                elif cityblock(self.states[s_prim][0:2], self.states[s_prim][2:4]) < cityblock(self.states[s_prim][0:2], self.states[s][2:4]):
-                                    towards = 1 - (1/self.life_mean)
-                                else:
-                                    towards = 0
-                                # Total transition probability to s_prim is given by marginalizing over the
-                                # two cases when the minotaur moves deterministically and randomly
-                                transition_probabilities[s_prim,
-                                                         s, a] = towards*(1-self.prob_random) + prob*self.prob_random
+                            if s_prim in min_dist:
+                                towards = (
+                                    1-(1/self.life_mean))/len(min_dist)
+                            else:
+                                towards = 0
+                            transition_probabilities[s_prim,
+                                                     s, a] = towards*(1-self.prob_random) + prob*self.prob_random
+                # # If the keys have not been found
+                            # if self.states[s][-1] == 0:
+                            #     # If the player is not in position C
+                            #     if self.states[s][0:2] != (0, 7):
+                            #         # If the next state is one where the keys have not been found
+                            #         if self.states[s_prim][-1] == 0:
+                            #             if s_prim in min_dist:
+                            #                 towards = (
+                            #                     1-(1/self.life_mean))/len(min_dist)
+                            #             else:
+                            #                 towards = 0
+                            #             transition_probabilities[s_prim,
+                            #                                      s, a] = towards*(1-self.prob_random) + prob*self.prob_random
+                            #         # If the next state is one where the keys have been found
+                            #     elif self.states[s_prim][-1] == 1:
+                            #         if s_prim in min_dist:
+                            #             towards = (
+                            #                 1-(1/self.life_mean))/len(min_dist)
+                            #         else:
+                            #             towards = 0
+                            #         # Total transition probability to s_prim is given by marginalizing over the
+                            #         # two cases when the minotaur moves deterministically and randomly
+                            #         transition_probabilities[s_prim,
+                            #                                  s, a] = towards*(1-self.prob_random) + prob*self.prob_random
+                            # # If the next state is one where the keys have been found
+                            # elif self.states[s_prim][-1] == 1:
+                            #     if s_prim in min_dist:
+                            #         towards = (
+                            #             1-(1/self.life_mean))/len(min_dist)
+                            #     else:
+                            #         towards = 0
+                            #     # Total transition probability to s_prim is given by marginalizing over the
+                            #     # two cases when the minotaur moves deterministically and randomly
+                            #     transition_probabilities[s_prim,
+                            #                              s, a] = towards*(1-self.prob_random) + prob*self.prob_random
                 # The player is in an absorbing state
                 else:
                     prob = 1/len(next_s)
@@ -350,7 +295,7 @@ class Maze:
                 for a in range(self.n_actions):
                     next_s = self.__possible_transitions(s, a)
                     # Reward for being eaten
-                    if self.states[s][0:2] == self.states[s][2:4]:
+                    if self.states[s][0: 2] == self.states[s][2: 4]:
                         rewards[s, a] = self.IMPOSSIBLE_REWARD
                     # Reward for dying of poisoning is the same
                     # as for walking into walls or being eaten
