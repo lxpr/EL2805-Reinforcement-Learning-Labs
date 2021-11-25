@@ -242,41 +242,6 @@ class Maze:
                                 towards = 0
                             transition_probabilities[s_prim,
                                                      s, a] = towards*(1-self.prob_random) + prob*self.prob_random
-                # # If the keys have not been found
-                            # if self.states[s][-1] == 0:
-                            #     # If the player is not in position C
-                            #     if self.states[s][0:2] != (0, 7):
-                            #         # If the next state is one where the keys have not been found
-                            #         if self.states[s_prim][-1] == 0:
-                            #             if s_prim in min_dist:
-                            #                 towards = (
-                            #                     1-(1/self.life_mean))/len(min_dist)
-                            #             else:
-                            #                 towards = 0
-                            #             transition_probabilities[s_prim,
-                            #                                      s, a] = towards*(1-self.prob_random) + prob*self.prob_random
-                            #         # If the next state is one where the keys have been found
-                            #     elif self.states[s_prim][-1] == 1:
-                            #         if s_prim in min_dist:
-                            #             towards = (
-                            #                 1-(1/self.life_mean))/len(min_dist)
-                            #         else:
-                            #             towards = 0
-                            #         # Total transition probability to s_prim is given by marginalizing over the
-                            #         # two cases when the minotaur moves deterministically and randomly
-                            #         transition_probabilities[s_prim,
-                            #                                  s, a] = towards*(1-self.prob_random) + prob*self.prob_random
-                            # # If the next state is one where the keys have been found
-                            # elif self.states[s_prim][-1] == 1:
-                            #     if s_prim in min_dist:
-                            #         towards = (
-                            #             1-(1/self.life_mean))/len(min_dist)
-                            #     else:
-                            #         towards = 0
-                            #     # Total transition probability to s_prim is given by marginalizing over the
-                            #     # two cases when the minotaur moves deterministically and randomly
-                            #     transition_probabilities[s_prim,
-                            #                              s, a] = towards*(1-self.prob_random) + prob*self.prob_random
                 # The player is in an absorbing state
                 else:
                     prob = 1/len(next_s)
