@@ -8,7 +8,7 @@ def qlearning(env, epsilon, alpha=None, N=50000, gamma=1):
     Input env:          Environment for which the algorithm should learn the optimal policy
 
 
-    Input epsilon:      Parameter which tells the Q-Learning algorithm's behaviour policy 
+    Input epsilon:      Parameter which tells the Q-Learning algorithm's behaviour policy
                         with which probability to act greedy, as well as to explore
 
     Input alpha:        Step size, if set to a constant value
@@ -33,11 +33,13 @@ def qlearning(env, epsilon, alpha=None, N=50000, gamma=1):
     Q = np.zeros((n_states, n_actions))
     # Number of times a specific state-action pair has been observed
     n_sa = np.zeros(Q.shape)
-
+    V_convergence = np.empty(N)
     for n in range(N):
+        if n % 1000 == 0:
+            print(n)
         # Initiate state to starting state
         s = env.map[(0, 0, 6, 5, 0)]
-        while env.states[s] != "Dead" and not (env.maze[env.states[s][0:2]] == 2 and env.states[s][-1] == 1):
+        while env.states[s] != "Dead" and not (env.maze[env.states[s][0:2]] == 2 and env.states[s][-1] == 1) and not(env.states[s][0:2] == env.states[s][2:4]):
             # Generate an action using the epsilon-soft behaviour policy
             if rng.choice([0, 1], p=[1-epsilon, epsilon]):
                 # With probability epsilon choose a random action
@@ -48,27 +50,27 @@ def qlearning(env, epsilon, alpha=None, N=50000, gamma=1):
 
             # Collect reward based on state and action
             r_n = r[s, a]
-            if env.states[s][0:2] == env.states[s][2:4]:
-                next_s = env.map["Dead"]
-            else:
-                # Generate a new state based on the transition probabilities given by the state and action
-                next_states = np.where(P[:, s, a] > 0)[0]
-                probs = P[next_states, s, a]
-                next_s = rng.choice(next_states, p=P[next_states, s, a])
 
-                # Update n_sa
-                n_sa[s, a] += 1
+            # Generate a new state based on the transition probabilities given by the state and action
+            next_states = np.where(P[:, s, a] > 0)[0]
+            probs = P[next_states, s, a]
+            next_s = rng.choice(next_states, p=P[next_states, s, a])
 
-                alpha = 1/n_sa[s, a] if alpha == None else alpha
+            # Update n_sa
+            n_sa[s, a] += 1
 
-                # Policy improvement
-                Q[s, a] += alpha*(r_n + gamma*max(Q[next_s, :]) - Q[s, a])
+            step_size = 1/(n_sa[s, a]**(2/3) if alpha ==
+                           None else 1/(n_sa[s, a]**alpha))
+
+            # Policy improvement
+            Q[s, a] += alpha*(r_n + gamma*max(Q[next_s, :]) - Q[s, a])
 
             # Move on to next state
             s = next_s
+        V_convergence[n] = max(Q[env.map[(0, 0, 6, 5, 0)], :])
     # The policy returned by the function is the greedy policy wrt Q
     policy = np.argmax(Q, 1)
-    return Q, policy
+    return Q, policy, V_convergence
 
 
 if __name__ == "__main__":

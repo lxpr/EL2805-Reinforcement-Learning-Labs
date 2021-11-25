@@ -220,7 +220,7 @@ class Maze:
                     # This is the uniform probability of transitioning into
                     # a state which is not the "Dead" state
                     prob = ((self.life_mean-1) / self.life_mean) / \
-                           len(next_s)
+                        len(next_s)
 
                     # Distance between player and minotaur in possible new states
                     dist = [cityblock(
@@ -330,8 +330,11 @@ class Maze:
             while self.states[s] != "Dead" and self.maze[self.states[s][0:2]] != 2:
                 # Update state
                 s = next_s
-                # Move to next state given the policy and the current state
-                next_s = self.__move(s, policy[s])
+                if self.states[s][0:2] == self.states[s][2:4]:
+                    next_s = self.map["Dead"]
+                else:
+                    # Move to next state given the policy and the current state
+                    next_s = self.__move(s, policy[s])
                 # Add the position in the maze corresponding to the next state
                 # to the path
                 path.append(self.states[next_s])
@@ -542,7 +545,7 @@ def animate_solution(maze, path):
             if last_idx is None:
                 last_idx = i - 1
             grid.get_celld()[(path[last_idx][0:2])
-            ].set_facecolor(LIGHT_RED)
+                             ].set_facecolor(LIGHT_RED)
             grid.get_celld()[(path[last_idx][0:2])].get_text().set_text(
                 'Player is dead')
         else:
@@ -566,12 +569,14 @@ def animate_solution(maze, path):
             elif path[i] != "Dead":
                 if path[i - 1][0:2] != path[i][2:4] and path[i - 1][0:2] != path[i][0:2]:
                     grid.get_celld()[(path[i - 1][0:2])
-                    ].set_facecolor(col_map[maze[path[i - 1][0:2]]])
-                    grid.get_celld()[(path[i - 1][0:2])].get_text().set_text('')
+                                     ].set_facecolor(col_map[maze[path[i - 1][0:2]]])
+                    grid.get_celld()[(path[i - 1][0:2])
+                                     ].get_text().set_text('')
                 if path[i - 1][2:4] != path[i][0:2] and path[i - 1][2:4] != path[i][2:4]:
                     grid.get_celld()[(path[i - 1][2:4])
-                    ].set_facecolor(col_map[maze[path[i - 1][2:4]]])
-                    grid.get_celld()[(path[i - 1][2:4])].get_text().set_text('')
+                                     ].set_facecolor(col_map[maze[path[i - 1][2:4]]])
+                    grid.get_celld()[(path[i - 1][2:4])
+                                     ].get_text().set_text('')
         display.display(fig)
         display.clear_output(wait=True)
         time.sleep(1)
