@@ -4,19 +4,11 @@ from maze_keys import Maze
 
 def qlearning(env, epsilon, alpha=None, N=50000, gamma=1):
     """Description: Function which implements the Q-Learning algorithm
-
     Input env:          Environment for which the algorithm should learn the optimal policy
-
-
     Input epsilon:      Parameter which tells the Q-Learning algorithm's behaviour policy
                         with which probability to act greedy, as well as to explore
-
     Input alpha:        Step size exponent, if set to a different value than 2/3
-
-
     Input N:            Number of iterations of the algorithm
-
-
     Output Q, policy:    Returns step-action value function Q for the learned policy, as well as the policy itself
     """
 
@@ -70,6 +62,7 @@ def qlearning(env, epsilon, alpha=None, N=50000, gamma=1):
         V_convergence[n] = max(Q[env.map[(0, 0, 6, 5, 0)], :])
     # The policy returned by the function is the greedy policy wrt Q
     policy = np.argmax(Q, 1)
+    print(max(Q, 1))
     print("Nr of times initial state has been visited")
     print(n_sa[env.map[(0, 0, 6, 5, 0)], :])
     return Q, policy, V_convergence

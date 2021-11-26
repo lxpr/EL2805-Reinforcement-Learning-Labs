@@ -49,10 +49,8 @@ class Maze:
         """ Constructor of the environment Maze.
         Input: life_mean        The mean of a geometric distribution giving the life of the player
                                 after they have been poisoned.
-
         Input: stand_still      Boolean which indicates if the minotaur is allowed to stand still
                                 or not.
-
         Input: prob_random      Probability of the minotaur moving at random.
         """
         self.maze = maze
@@ -142,11 +140,8 @@ class Maze:
         """Description: Method which takes in a state, action pair and returns the possible next states
         for this pair. Takes into account the rules which govern the movements of both the
         player and the minotaur.
-
         Input: state            The current state of the player
-
         Input: action           The action chosen by the player
-
         Output: states          A list containing the possible next state(s) given (s,a)
         """
 
@@ -226,7 +221,7 @@ class Maze:
 
                     # Distance between player and minotaur in possible new states
                     dist = [cityblock(
-                        self.states[s_prim][0:2], self.states[s_prim][2:4]) for s_prim in next_s]
+                        self.states[s][0:2], self.states[s_prim][2:4]) for s_prim in next_s]
                     # The states corresponding to the minotaur moving towards the player
                     min_dist = [next_s[i] for i in range(
                         len(next_s)) if dist[i] == min(dist)]
@@ -396,6 +391,41 @@ class Maze:
         policy = np.argmax(sarsa_agent.Q, 1)
 
         return path, policy, sarsa_agent.Q
+
+    def Q_learning_sim(self, start, q_agent=None):
+        path = list()
+        # Initialize current state, next state and time
+        t = 1
+        s = self.map[start]
+        # Add the starting position in the maze to the path
+        path.append(start)
+        # choose action according to sarsa
+        action = q_agent.choose_action(s, rng, self.available_actions(s))
+        # Move to next state given the action and the current state
+        next_s = self.__move(s, action)
+        # Add the position in the maze corresponding to the next state
+        # to the path
+        path.append(self.states[next_s])
+        # Loop while state is not the goal state or "Dead" state
+        while self.states[s] != "Dead":
+            if self.maze[self.states[s][0:2]] == 2 and self.states[s][4] == 1:
+                break
+            q_agent.learn(s, action, self.rewards[s, action], next_s)
+            # Update state
+            # if s != next_s:
+            #     print(self.states[next_s])
+            s = next_s
+            action = q_agent.choose_action(s, rng, self.available_actions(s))
+            # Move to next state given the policy and the current state
+            next_s = self.__move(s, action)
+            # Add the position in the maze corresponding to the next state
+            # to the path
+            path.append(self.states[next_s])
+            # Update time and state for next iteration
+            t += 1
+        policy = np.argmax(q_agent.Q, 1)
+
+        return path, policy, q_agent.Q
 
     def show(self):
         print('The states are :')
@@ -637,13 +667,9 @@ def animate_solution(maze, path):
 
 def policy_evaluation(env, policy, horizon):
     """Evaluates a policy based on the probability of reaching the end state given a time horizon.
-
     :Input env          : The maze environment for which the policy was calculated
-
     :Input policy       : The calculated policy for the previous maze environment
-
     :Input horizon      : The time horizon for which the policy should be evaluated
-
     :Output Value       : The value function for all states of the environment under the provided policy
     """
     p = np.copy(env.transition_probabilities)
