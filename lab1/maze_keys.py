@@ -166,9 +166,11 @@ class Maze:
         # Check if player is eaten
         dead_state = (
             self.states[state][0:2] == self.states[state][2:4])
+        if dead_state:
+            return [self.map["Dead"]]
         # If next state is impossible or if the player has reached the end state
         # or if the minotaur has eaten the player, return original state
-        if hitting_maze_walls or end_state or dead_state:
+        if hitting_maze_walls or end_state:
             return [state]
         else:
             possible_states = []
@@ -327,7 +329,9 @@ class Maze:
             # to the path
             path.append(self.states[next_s])
             # Loop while state is not the goal state or "Dead" state
-            while self.states[s] != "Dead" and self.maze[self.states[s][0:2]] != 2:
+            while self.states[s] != "Dead":
+                if self.maze[self.states[s][0:2]] == 2 and self.states[s][4] == 1:
+                    break
                 # Update state
                 s = next_s
                 # Move to next state given the policy and the current state
@@ -337,7 +341,61 @@ class Maze:
                 path.append(self.states[next_s])
                 # Update time and state for next iteration
                 t += 1
+
         return path
+
+    def available_actions(self, state):
+        action_list = list()
+        action_list.append(0)
+        if self.states[state] == "Dead":
+            return action_list
+        for action in range(1, len(self.actions)):
+            # Compute the future player position given current (state, action)
+            player_row = self.states[state][0] + self.actions[action][0]
+            player_col = self.states[state][1] + self.actions[action][1]
+            # Is the future player position an impossible one ?
+            hitting_maze_walls = (player_row == -1) or (player_row == self.maze.shape[0]) or \
+                                 (player_col == -1) or (player_col == self.maze.shape[1]) or \
+                                 (self.maze[player_row, player_col] == 1)
+            if not hitting_maze_walls:
+                action_list.append(action)
+        return action_list
+
+    def sarsa_learning(self, start, sarsa_agent=None):
+        path = list()
+        # Initialize current state, next state and time
+        t = 1
+        s = self.map[start]
+        # Add the starting position in the maze to the path
+        path.append(start)
+        # choose action according to sarsa
+        action = sarsa_agent.choose_action(s, rng, self.available_actions(s))
+        # Move to next state given the action and the current state
+        next_s = self.__move(s, action)
+        # Add the position in the maze corresponding to the next state
+        # to the path
+        path.append(self.states[next_s])
+        # Loop while state is not the goal state or "Dead" state
+        while self.states[s] != "Dead":
+            if self.maze[self.states[s][0:2]] == 2 and self.states[s][4] == 1:
+                break
+            next_action = sarsa_agent.choose_action(next_s, rng, self.available_actions(next_s))
+            sarsa_agent.learn(s, action, self.rewards[s, action], next_s, next_action)
+            # Update state
+            # if s != next_s:
+            #     print(self.states[next_s])
+            s = next_s
+            action = next_action
+            # Move to next state given the policy and the current state
+            next_s = self.__move(s, action)
+            # Add the position in the maze corresponding to the next state
+            # to the path
+            path.append(self.states[next_s])
+            # Update time and state for next iteration
+            t += 1
+        policy = np.argmax(sarsa_agent.Q, 1)
+
+        return path, policy, sarsa_agent.Q
 
     def show(self):
         print('The states are :')
