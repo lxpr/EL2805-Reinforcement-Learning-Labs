@@ -2,7 +2,7 @@ import numpy as np
 from maze_keys import Maze
 
 
-def qlearning(env, epsilon, alpha=None, N=50000, gamma=1):
+def qlearning(env, epsilon, alpha=None, N=50000, gamma=1, random_start=False):
     """Description: Function which implements the Q-Learning algorithm
 
     Input env:          Environment for which the algorithm should learn the optimal policy
@@ -37,16 +37,23 @@ def qlearning(env, epsilon, alpha=None, N=50000, gamma=1):
     for n in range(N):
         if n % 1000 == 0:
             print(n)
-        # Initiate state to starting state
-        s = env.map[(0, 0, 6, 5, 0)]
-        while env.states[s] != "Dead" and not (env.maze[env.states[s][0:2]] == 2 and env.states[s][-1] == 1) and not(env.states[s][0:2] == env.states[s][2:4]):
+        if random_start:
+            # Initiate state to random state
+            s = rng.choice(n_states)
+            start = True
+        else:
+            # Initiate to starting state
+            s = env.map[(0, 0, 6, 5, 0)]
+            start = False
+        while start or (env.states[s] != "Dead" and not (env.maze[env.states[s][0:2]] == 2 and env.states[s][-1] == 1) and not(env.states[s][0:2] == env.states[s][2:4])):
             # Generate an action using the epsilon-soft behaviour policy
+            start = False
             if rng.choice([0, 1], p=[1-epsilon, epsilon]):
                 # With probability epsilon choose a random action
                 a = rng.choice(n_actions)
             else:
-                # With probability 1-epsilon choose epsilon greedy wrt Q
-                a = np.argmax(Q[s, :])
+                # With probability 1-epsilon choose epsilon greedy wrt Q. If several actions have the same value, choose randomly between them
+                a = rng.choice(np.where(Q[s, :] == max(Q[s, :]))[0])
 
             # Collect reward based on state and action
             r_n = r[s, a]
@@ -59,8 +66,8 @@ def qlearning(env, epsilon, alpha=None, N=50000, gamma=1):
             # Update n_sa
             n_sa[s, a] += 1
 
-            step_size = 1/(n_sa[s, a]**(2/3) if alpha ==
-                           None else 1/(n_sa[s, a]**alpha))
+            step_size = 1/(n_sa[s, a]**(2/3)
+                           ) if alpha == None else 1/(n_sa[s, a]**alpha)
 
             # Policy improvement
             Q[s, a] += step_size*(r_n + gamma*max(Q[next_s, :]) - Q[s, a])

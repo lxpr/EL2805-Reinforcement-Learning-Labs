@@ -610,14 +610,13 @@ def policy_evaluation(env, policy, horizon):
     V = np.zeros((n_states, T+1))
     # The value of a state at the final time is equal to the instantaneous reward for that state, in
     # accordance with Bellman's equations
-    a_p = policy[:, T]
-    V[:, T] = r[range(n_states), a_p]
+    V[:, T] = r[range(n_states), policy]
 
     # Compute backwards recursion, following the given policy
     for t in range(T-1, -1, -1):
         for s in range(n_states):
             V[s, t] = np.dot(p[:, s, policy[s, t]], V[:, t+1])
-    start_state = env.map[(0, 0, 6, 5)]
+    start_state = env.map[(0, 0, 6, 5, 0)]
     return V[start_state, 0]
 
 
