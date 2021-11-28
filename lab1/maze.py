@@ -533,6 +533,58 @@ def animate_solution(maze, path):
         time.sleep(1)
 
 
+def illustrate_policy(env,  maze, policy, minotaur_position):
+    # Map a color to each cell in the maze
+    col_map = {0: WHITE, 1: BLACK,
+               2: LIGHT_GREEN, -6: LIGHT_RED, -1: LIGHT_RED}
+
+    # Size of the maze
+    rows, cols = maze.shape
+
+    # Create figure of the size of the maze
+    fig = plt.figure(1, figsize=(cols, rows))
+
+    # Remove the axis ticks and add title title
+    ax = plt.gca()
+    ax.set_title('Policy simulation')
+    ax.set_xticks([])
+    ax.set_yticks([])
+
+    # Give a color to each cell
+    colored_maze = [[col_map[maze[j, i]]
+                     for i in range(cols)] for j in range(rows)]
+
+    # Create figure of the size of the maze
+    fig = plt.figure(1, figsize=(cols, rows))
+
+    # Create a table to color
+    grid = plt.table(cellText=None,
+                     cellColours=colored_maze,
+                     cellLoc='center',
+                     loc=(0, 0),
+                     edges='closed')
+
+    # Modify the hight and width of the cells in the table
+    tc = grid.properties()['children']
+    for cell in tc:
+        cell.set_height(1.0/rows)
+        cell.set_width(1.0/cols)
+
+    grid.get_celld()[minotaur_position].set_facecolor(LIGHT_PURPLE)
+    grid.get_celld()[minotaur_position].get_text().set_text('Minotaur')
+
+    for row in range(rows):
+        for col in range(cols):
+            if maze[row, col] == 0:
+                state = env.map[(row, col, minotaur_position[0],
+                                 minotaur_position[1])]
+                action = policy[state, 0]
+                action_text = env.actions_names[action]
+                grid.get_celld()[(row, col)].get_text().set_text(action_text)
+
+    plt.show()
+
+
 def policy_evaluation(env, policy, horizon):
     """Evaluates a policy based on the probability of reaching the end state given a time horizon.
 
