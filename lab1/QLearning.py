@@ -26,13 +26,16 @@ def qlearning(env, epsilon, alpha=None, N=50000, gamma=0.9):
     # Number of times a specific state-action pair has been observed
     n_sa = np.zeros(Q.shape)
     V_convergence = np.empty(N)
+
     for n in range(N):
         if n % 1000 == 0:
             print("Episode Number: ")
             print(n)
         # Initiate state to starting state
         s = env.map[(0, 0, 6, 5, 0)]
-        while env.states[s] != "Dead" and not (env.maze[env.states[s][0:2]] == 2 and env.states[s][-1] == 1) and not(env.states[s][0:2] == env.states[s][2:4]):
+        # Flag to stop episode if player dies or makes it out
+        stop = False
+        while not stop:
             # Generate an action using the epsilon-soft behaviour policy
             if rng.choice([0, 1], p=[1-epsilon, epsilon]):
                 # With probability epsilon choose a random action
@@ -62,6 +65,8 @@ def qlearning(env, epsilon, alpha=None, N=50000, gamma=0.9):
 
             # Move on to next state
             s = next_s
+            if env.states[s] == "Dead" or (env.maze[env.states[s][0:2]] == 2 and env.states[s][-1] == 1) or (env.states[s][0:2] == env.states[s][2:4]):
+                stop = True
         V_convergence[n] = max(Q[env.map[(0, 0, 6, 5, 0)], :])
     # The policy returned by the function is the greedy policy wrt Q
     policy = np.argmax(Q, 1)

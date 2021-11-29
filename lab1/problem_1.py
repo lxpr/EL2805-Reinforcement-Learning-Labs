@@ -129,38 +129,43 @@ def problem_1h():
     ])
 
     env_Q = mz_k.Maze(maze_Q, life_mean=50, prob_random=0.65)
-    epsilon = 0.5
-    print("Beginning Q-Learning for epsilon=0.5:\n")
+    epsilon = 0.1
+    print("Beginning Q-Learning for epsilon={}:\n".format(epsilon))
     Q, policy_Q, V_convergence = qlearning(env_Q, epsilon, gamma=0.9, N=50000)
 
     plt.figure()
-    plt.title("Convergence of Starting State for epsilon=0.5")
-    plt.plot(V_convergence)
-
-    epsilon = 0.9
-    print("Beginning Q-Learning for epsilon=0.9:\n")
-    Q, policy_Q, V_convergence = qlearning(env_Q, epsilon, gamma=0.9, N=50000)
-
-    plt.figure()
-    plt.title("Convergence of Starting State for epsilon=0.9")
+    plt.title("Convergence of Starting State for epsilon={}".format(epsilon))
     plt.plot(V_convergence)
 
     epsilon = 0.5
-    print("Beginning Q-Learning for epsilon=0.5 and alpha=0.6:\n")
+    print("Beginning Q-Learning for epsilon={}:\n".format(epsilon))
+    Q, policy_Q, V_convergence = qlearning(env_Q, epsilon, gamma=0.9, N=50000)
+
+    plt.figure()
+    plt.title("Convergence of Starting State for epsilon={}".format(epsilon))
+    plt.plot(V_convergence)
+
+    epsilon = 0.1
+    alpha = 0.6
+    print(
+        "Beginning Q-Learning for epsilon={0} and alpha={1}:\n".format(epsilon, alpha))
     Q, policy_Q, V_convergence = qlearning(
         env_Q, epsilon, alpha=0.6, gamma=0.9, N=50000)
 
     plt.figure()
-    plt.title("Convergence of Starting State for epsilon=0.5 and alpha=0.6")
+    plt.title("Convergence of Starting State for epsilon={0} and alpha={1}".format(
+        epsilon, alpha))
     plt.plot(V_convergence)
 
     epsilon = 0.5
-    print("Beginning Q-Learning for epsilon=0.5 and alpha=1:\n")
+    alpha = 1
+    print("Beginning Q-Learning for epsilon={} and alpha={}:\n".format(epsilon, alpha))
     Q, policy_Q, V_convergence = qlearning(
         env_Q, epsilon, alpha=1, gamma=0.9, N=50000)
 
     plt.figure()
-    plt.title("Convergence of Starting State for epsilon=0.5 and alpha=1")
+    plt.title("Convergence of Starting State for epsilon={0} and alpha={1}".format(
+        epsilon, alpha))
     plt.plot(V_convergence)
 
     plt.show()
