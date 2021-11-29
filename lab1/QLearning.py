@@ -2,7 +2,7 @@ import numpy as np
 from maze_keys import Maze
 
 
-def qlearning(env, epsilon, alpha=None, N=50000, gamma=0.9):
+def qlearning(env, epsilon, alpha=None, N=50000, gamma=0.9, random_start=False):
     """Description: Function which implements the Q-Learning algorithm
     Input env:          Environment for which the algorithm should learn the optimal policy
     Input epsilon:      Parameter which tells the Q-Learning algorithm's behaviour policy
@@ -31,8 +31,12 @@ def qlearning(env, epsilon, alpha=None, N=50000, gamma=0.9):
         if n % 1000 == 0:
             print("Episode Number: ")
             print(n)
-        # Initiate state to starting state
-        s = env.map[(0, 0, 6, 5, 0)]
+        if random_start:
+            # Initiating starting state randomly could help with convergence, and for the agent to learn that it is preferable not to be eaten by the minotaur
+            s = rng.choice(n_states)
+        else:
+            # Initiate state to starting state
+            s = env.map[(0, 0, 6, 5, 0)]
         # Flag to stop episode if player dies or makes it out
         stop = False
         while not stop:

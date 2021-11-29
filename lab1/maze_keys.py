@@ -42,7 +42,7 @@ class Maze:
 
     # Reward values
     STEP_REWARD = -1
-    GOAL_REWARD = 0
+    GOAL_REWARD = 100
     IMPOSSIBLE_REWARD = -100
 
     def __init__(self, maze, weights=None, random_rewards=False, stand_still=False, life_mean=None, prob_random=0.65):
@@ -217,7 +217,7 @@ class Maze:
                     # This is the uniform probability of transitioning into
                     # a state which is not the "Dead" state
                     prob = ((self.life_mean-1) / self.life_mean) / \
-                           len(next_s)
+                        len(next_s)
 
                     # Distance between player and minotaur in possible new states
                     dist = [cityblock(
@@ -265,7 +265,10 @@ class Maze:
                     # Reward for walking into wall
                     elif len(next_s) == 1:
                         rewards[s, a] = self.IMPOSSIBLE_REWARD
-                    # Reward for taking a step to an empty cell that is not the exit
+                    # Increase key reward
+                    elif self.maze[self.states[s][0:2]] == 3 and self.states[s][-1] == 0:
+                        rewards[s, a] = 100
+                        # Reward for taking a step to an empty cell that is not the exit
                     else:
                         rewards[s, a] = self.STEP_REWARD
 
@@ -374,8 +377,10 @@ class Maze:
         while self.states[s] != "Dead":
             if self.maze[self.states[s][0:2]] == 2 and self.states[s][4] == 1:
                 break
-            next_action = sarsa_agent.choose_action(next_s, rng, self.available_actions(next_s))
-            sarsa_agent.learn(s, action, self.rewards[s, action], next_s, next_action)
+            next_action = sarsa_agent.choose_action(
+                next_s, rng, self.available_actions(next_s))
+            sarsa_agent.learn(
+                s, action, self.rewards[s, action], next_s, next_action)
             # Update state
             # if s != next_s:
             #     print(self.states[next_s])
@@ -630,7 +635,7 @@ def animate_solution(maze, path):
             if last_idx is None:
                 last_idx = i - 1
             grid.get_celld()[(path[last_idx][0:2])
-            ].set_facecolor(LIGHT_RED)
+                             ].set_facecolor(LIGHT_RED)
             grid.get_celld()[(path[last_idx][0:2])].get_text().set_text(
                 'Player is dead')
         else:
@@ -654,12 +659,14 @@ def animate_solution(maze, path):
             elif path[i] != "Dead":
                 if path[i - 1][0:2] != path[i][2:4] and path[i - 1][0:2] != path[i][0:2]:
                     grid.get_celld()[(path[i - 1][0:2])
-                    ].set_facecolor(col_map[maze[path[i - 1][0:2]]])
-                    grid.get_celld()[(path[i - 1][0:2])].get_text().set_text('')
+                                     ].set_facecolor(col_map[maze[path[i - 1][0:2]]])
+                    grid.get_celld()[(path[i - 1][0:2])
+                                     ].get_text().set_text('')
                 if path[i - 1][2:4] != path[i][0:2] and path[i - 1][2:4] != path[i][2:4]:
                     grid.get_celld()[(path[i - 1][2:4])
-                    ].set_facecolor(col_map[maze[path[i - 1][2:4]]])
-                    grid.get_celld()[(path[i - 1][2:4])].get_text().set_text('')
+                                     ].set_facecolor(col_map[maze[path[i - 1][2:4]]])
+                    grid.get_celld()[(path[i - 1][2:4])
+                                     ].get_text().set_text('')
         display.display(fig)
         display.clear_output(wait=True)
         time.sleep(1)
