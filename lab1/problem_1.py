@@ -3,6 +3,7 @@ import maze_keys as mz_k
 import numpy as np
 from IPython import display
 from matplotlib import pyplot as plt
+from QLearning import qlearning
 
 
 def exit_probability_fun(env_1):
@@ -89,7 +90,7 @@ def problem_1e(maze):
     print(nr_escape/N)
 
 
-def problem_1f():
+def problem_1g():
     maze = np.array([
         [0, 0, 1, 0, 0, 0, 0, 3],
         [0, 0, 1, 0, 0, 1, 0, 0],
@@ -116,6 +117,55 @@ def problem_1f():
     print(nr_escape/N)
 
 
+def problem_1h():
+    maze_Q = np.array([
+        [0, 0, 1, 0, 0, 0, 0, 3],
+        [0, 0, 1, 0, 0, 1, 0, 0],
+        [0, 0, 1, 0, 0, 1, 1, 1],
+        [0, 0, 1, 0, 0, 1, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 1, 1, 1, 1, 1, 1, 0],
+        [0, 0, 0, 0, 1, 2, 0, 0]
+    ])
+
+    env_Q = mz_k.Maze(maze_Q, life_mean=50, prob_random=0.65)
+    epsilon = 0.5
+    print("Beginning Q-Learning for epsilon=0.5:\n")
+    Q, policy_Q, V_convergence = qlearning(env_Q, epsilon, gamma=0.9, N=50000)
+
+    plt.figure()
+    plt.title("Convergence of Starting State for epsilon=0.5")
+    plt.plot(V_convergence)
+
+    epsilon = 0.9
+    print("Beginning Q-Learning for epsilon=0.9:\n")
+    Q, policy_Q, V_convergence = qlearning(env_Q, epsilon, gamma=0.9, N=50000)
+
+    plt.figure()
+    plt.title("Convergence of Starting State for epsilon=0.9")
+    plt.plot(V_convergence)
+
+    epsilon = 0.5
+    print("Beginning Q-Learning for epsilon=0.5 and alpha=0.6:\n")
+    Q, policy_Q, V_convergence = qlearning(
+        env_Q, epsilon, alpha=0.6, gamma=0.9, N=50000)
+
+    plt.figure()
+    plt.title("Convergence of Starting State for epsilon=0.5 and alpha=0.6")
+    plt.plot(V_convergence)
+
+    epsilon = 0.5
+    print("Beginning Q-Learning for epsilon=0.5 and alpha=1:\n")
+    Q, policy_Q, V_convergence = qlearning(
+        env_Q, epsilon, alpha=1, gamma=0.9, N=50000)
+
+    plt.figure()
+    plt.title("Convergence of Starting State for epsilon=0.5 and alpha=1")
+    plt.plot(V_convergence)
+
+    plt.show()
+
+
 if __name__ == "__main__":
     maze = np.array([
         [0, 0, 1, 0, 0, 0, 0, 0],
@@ -129,7 +179,12 @@ if __name__ == "__main__":
 
     env = mz.Maze(maze)
 
+    # Uncomment the problem that you would like to run code for. Problem_1c takes a while to run, since it runs dynamic programming
+    # for a total of 60 different time horizons. The Q-Learning code also takes a while, as it learns and plots
+    # convergence for a policy for several values and alpha (exponent of step size)
+
     # problem_1b(env, maze)
     # problem_1c(env, maze)
     # problem_1e(maze)
-    problem_1f()
+    # problem_1g()
+    problem_1h()

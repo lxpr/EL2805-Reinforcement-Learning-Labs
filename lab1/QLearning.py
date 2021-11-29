@@ -2,7 +2,7 @@ import numpy as np
 from maze_keys import Maze
 
 
-def qlearning(env, epsilon, alpha=None, N=50000, gamma=1):
+def qlearning(env, epsilon, alpha=None, N=50000, gamma=0.9):
     """Description: Function which implements the Q-Learning algorithm
     Input env:          Environment for which the algorithm should learn the optimal policy
     Input epsilon:      Parameter which tells the Q-Learning algorithm's behaviour policy
@@ -28,6 +28,7 @@ def qlearning(env, epsilon, alpha=None, N=50000, gamma=1):
     V_convergence = np.empty(N)
     for n in range(N):
         if n % 1000 == 0:
+            print("Episode Number: ")
             print(n)
         # Initiate state to starting state
         s = env.map[(0, 0, 6, 5, 0)]
@@ -37,10 +38,11 @@ def qlearning(env, epsilon, alpha=None, N=50000, gamma=1):
                 # With probability epsilon choose a random action
                 a = rng.choice(n_actions)
             else:
-                # With probability 1-epsilon choose epsilon greedy wrt Q
-                a = np.argmax(Q[s, :])
+                # With probability 1-epsilon choose epsilon greedy wrt Q. If several actions have the same value, choose randomly between them
+                a = rng.choice(np.where(Q[s, :] == max(Q[s, :]))[0])
+                # a = np.argmax(Q[s, :])
 
-            # Collect reward based on state and action
+                # Collect reward based on state and action
             r_n = r[s, a]
 
             # Generate a new state based on the transition probabilities given by the state and action
@@ -51,20 +53,18 @@ def qlearning(env, epsilon, alpha=None, N=50000, gamma=1):
             # Update n_sa
             n_sa[s, a] += 1
 
-            step_size = 1/(n_sa[s, a]**(2/3) if alpha ==
-                           None else 1/(n_sa[s, a]**alpha))
+            step_size = (1/(n_sa[s, a]**(2/3))
+                         ) if alpha == None else (1/(n_sa[s, a]**alpha))
 
             # Policy improvement
-            Q[s, a] += step_size*(r_n + gamma*max(Q[next_s, :]) - Q[s, a])
+            q_increment = step_size*(r_n + gamma*max(Q[next_s, :]) - Q[s, a])
+            Q[s, a] += q_increment
 
             # Move on to next state
             s = next_s
         V_convergence[n] = max(Q[env.map[(0, 0, 6, 5, 0)], :])
     # The policy returned by the function is the greedy policy wrt Q
     policy = np.argmax(Q, 1)
-    print(max(Q, 1))
-    print("Nr of times initial state has been visited")
-    print(n_sa[env.map[(0, 0, 6, 5, 0)], :])
     return Q, policy, V_convergence
 
 
