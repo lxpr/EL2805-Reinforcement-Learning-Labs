@@ -72,14 +72,18 @@ n_ep_running_average = 50                    # Running average of 50 episodes
 n_actions = env.action_space.n               # Number of available actions
 dim_state = len(env.observation_space.high)  # State dimensionality
 
-max_size = 30000                             # Maximum length of replay buffer
-train_batch = 6                             # Amount of experiences in a batch
+max_size = 10000                             # Maximum length of replay buffer
+train_batch = 4                            # Amount of experiences in a batch
 # Update frequency of target network
 update_freq = int(max_size/train_batch)
 lr = 1e-3                                    # Learning rate
 clip_val = 1                                 # Gradient clipping value
 epsilon_max = 0.9                            # Exploration parameter max,min
 epsilon_min = 0.05
+# Percentage of episodes when learning starts
+start_annealing = 0.2*N_episodes
+stop_annealing = 0.8*N_episodes
+neurons = 16
 
 
 # We will use these variables to compute the average episodic reward and
@@ -134,15 +138,15 @@ class DQNAgent(Agent):
     DQN agent using two neural networks to make decisions
     """
 
-    def __init__(self, n_actions, dim_state, lr, discount_factor, batch_size, clip_val):
+    def __init__(self, neurons, n_actions, dim_state, lr, discount_factor, batch_size, clip_val):
         super(DQNAgent, self).__init__(n_actions)
         self.rng = np.random.default_rng()
-        self.network = NeuralNet(input=dim_state, output=n_actions)
-        self.target = NeuralNet(input=dim_state, output=n_actions)
+        self.network = NeuralNet(neurons, input=dim_state, output=n_actions)
+        self.target = NeuralNet(neurons, input=dim_state, output=n_actions)
         self.lr = lr
         self.discount_factor = discount_factor
         self.buffer = ReplayBuffer(max_size=max_size)
-        self.opt = torch.optim.Adam(self.network.parameters())
+        self.opt = torch.optim.Adam(self.network.parameters(), lr=self.lr)
         self.batch_size = batch_size
         self.clip_val = clip_val
 
@@ -153,20 +157,14 @@ class DQNAgent(Agent):
             return self.last_action
         # Create state tensor and feed to main network to generate action
         state_tensor = torch.tensor(np.array([state]), requires_grad=False)
-        print("State tensor:")
-        print(state_tensor)
 
         output_tensor = self.network(state_tensor)
-        print("Output Q-Function:")
-        print(output_tensor)
 
         self.last_action = output_tensor.max(1)[1].item()
-        print("Chosen action:")
-        print(self.last_action)
         return self.last_action
 
     def backward(self):
-        if self.buffer.size < 3*self.batch_size:
+        if self.buffer.size < 5*self.batch_size:
             return
         # Perform learning step for the network
         # Reset gradients
@@ -176,47 +174,64 @@ class DQNAgent(Agent):
         # Get a batch of Q(s_t, a_t) for every (s_t, a_t) in batch
         x = torch.tensor(np.array([exp['state']
                          for exp in batch]), requires_grad=True)
-        print("States in batch:")
+        print("State tensor:")
         print(x)
+        print('')
         x = self.network(x)
-        print("Output from network based on states in batch:")
+
+        print("Output:")
         print(x)
-        print("Chosen action for each experience in batch:")
-        print([exp['action'] for exp in batch])
+        print('')
         x = torch.tensor([x[i, exp['action']]
                          for i, exp in enumerate(batch)], requires_grad=True)
-        print("Output values corresponding to actions in each state:")
+
+        print("Actions per experience:")
+        print([exp["action"] for exp in batch])
+        print('')
+
+        print("Q(s_t, a_t):")
         print(x)
+        print('')
+
         # Get targets for the batch
         y = torch.tensor(np.array([exp['next_state']
-                         for exp in batch]), requires_grad=False)
-        print("States for target tensor:")
-        print(y)
+                         for exp in batch]), requires_grad=True)
         y = self.target(y)
-        print("Output of the target network:")
+        print("Q(s_t+1, a)")
         print(y)
+        print('')
 
         # Indicator of whether episode finished with each experience
         d = torch.tensor(
             np.array([not exp['done'] for exp in batch]), requires_grad=False)
-        print("Indicator of whether episode fininshed (not) in experience:")
+        print("Indicator of not done:")
         print(d)
+        print('')
         # Reward for each experience
         r = torch.tensor(np.array([exp['reward']
                          for exp in batch]), requires_grad=True)
-        print("Reward for each experience:")
+        print("Rewards for the experience:")
         print(r)
+        print('')
         # Target values are r if the episode terminates in an experience,
         # and are r + gamma*max_a Q(s_t,a) if not
-        y = r + self.discount_factor*d*y.max(1)[0]
+        ymax = y.max(1)[0]
+
+        print("max_a Q(s_t+1, a):")
+        print(ymax)
+        print('')
+
+        y = r + self.discount_factor*d*ymax
         y = y.float()
         print("Target values:")
         print(y)
+        print('')
 
         # Calculate MSE loss and perform backward step
-        loss = -nn.functional.mse_loss(y, x)
-        print("Loss function:")
-        print(loss)
+        loss = nn.functional.mse_loss(x, y)
+        print("Loss:")
+        print(loss.item())
+        print('')
         loss.backward()
         nn.utils.clip_grad_norm_(self.network.parameters(), self.clip_val)
         self.opt.step()
@@ -225,19 +240,19 @@ class DQNAgent(Agent):
         # Copy parameters to target network
         self.target.load_state_dict(self.network.state_dict())
 
+# Training process
 
 # Training process
+
 
 # trange is an alternative to range in python, from the tqdm library
 # It shows a nice progression bar that you can update with useful information
 #agent = RandomAgent(n_actions)
-agent = DQNAgent(n_actions, dim_state, lr,
+agent = DQNAgent(neurons, n_actions, dim_state, lr,
                  discount_factor, train_batch, clip_val)
 EPISODES = trange(N_episodes, desc='Episode: ', leave=True)
 steps = 0
-# Percentage of episodes when learning starts
-start_annealing = 0.2*N_episodes
-stop_annealing = 0.9*N_episodes
+eps_list = []
 for i in EPISODES:
     # Reset enviroment data and initialize variables
     done = False
@@ -249,9 +264,10 @@ for i in EPISODES:
         # Calculate epsilon value, linear annealing
         if i >= round(start_annealing):
             epsilon = max(epsilon_min, epsilon_max - (epsilon_max-epsilon_min)
-                          * (i-start_annealing)/(N_episodes-start_annealing-1))
+                          * (i-start_annealing)/(stop_annealing-start_annealing-1))
         else:
             epsilon = epsilon_max
+
         # Take a random action
         action = agent.forward(state, epsilon)
 
@@ -273,13 +289,17 @@ for i in EPISODES:
 
         # Update target if enough steps have passed
         if steps % update_freq == 0:
-            print("Difference between networks layer1.weight")
-            print(agent.network.state_dict()[
-                  'linear1.weight']-agent.target.state_dict()['linear1.weight'])
+            print("Difference in target and main net:")
+            print((agent.target.state_dict()[
+                  "linear2.weight"]-agent.network.state_dict()["linear2.weight"]).norm())
+            print((agent.target.state_dict()[
+                  "linear1.weight"]-agent.network.state_dict()["linear1.weight"]).norm())
             agent.update_target()
-            print("Difference after update")
-            print(agent.network.state_dict()[
-                  'linear1.weight']-agent.target.state_dict()['linear1.weight'])
+            print((agent.target.state_dict()[
+                  "linear2.weight"]-agent.network.state_dict()["linear2.weight"]).norm())
+            print((agent.target.state_dict()[
+                  "linear1.weight"]-agent.network.state_dict()["linear1.weight"]).norm())
+            print("Flag!")
 
         # Update state for next iteration
         state = next_state
@@ -289,6 +309,7 @@ for i in EPISODES:
     # Append episode reward and total number of steps
     episode_reward_list.append(total_episode_reward)
     episode_number_of_steps.append(t)
+    eps_list.append(epsilon)
 
     # Close environment
     env.close()
@@ -324,4 +345,11 @@ ax[1].set_ylabel('Total number of steps')
 ax[1].set_title('Total number of steps vs Episodes')
 ax[1].legend()
 ax[1].grid(alpha=0.3)
+
+plt.figure()
+plt.plot(eps_list)
+plt.title("Epsilon value over episodes")
+plt.ylabel("Epsilon")
+plt.xlabel("Episodes")
+plt.grid(alpha=0.3)
 plt.show()
