@@ -1,7 +1,46 @@
 import numpy as np
 import gym
+import torch
+import matplotlib.pyplot as plt
 from tqdm import trange
-from DQN_agent import DQNAgent
+from DQN_agent import DQNAgent, RandomAgent
+
+
+def plot_q_values(network, num_step=100):
+    y = np.linspace(0, 1.5, num_step)
+    w = np.linspace(-np.pi, np.pi, num_step)
+    Y, W = np.meshgrid(y, w)
+    states = np.zeros((num_step ** 2, 8))
+
+    states[:, 1] = Y.flatten()
+    states[:, 4] = W.flatten()
+
+    values = network(torch.tensor(states, dtype=torch.float32, requires_grad=False))
+    max_values, argmax_values = values.max(1)
+
+    max_Q = max_values.detach().numpy().reshape((num_step, num_step))
+    argmax_Q = argmax_values.detach().numpy().reshape((num_step, num_step))
+
+    fig = plt.figure()
+    ax = plt.axes(projection='3d')
+    ax.plot_surface(Y, W, max_Q, cmap='viridis', edgecolor='none')
+
+    ax.set_title('Maximum Q values')
+    ax.set_xlabel('y')
+    ax.set_ylabel('$\omega$')
+    ax.set_zlabel('Max Q')
+
+    fig = plt.figure()
+    ax = plt.axes(projection='3d')
+    ax.plot_surface(Y, W, argmax_Q, cmap='viridis', edgecolor='none')
+
+    ax.set_title('Optimal Q actions')
+    ax.set_xlabel('y')
+    ax.set_ylabel('$\omega$')
+    ax.set_zlabel('Action')
+    ax.set_zticks([0, 1, 2, 3])
+    ax.set_zticklabels(['Stay', 'Left E.', 'Main E.', 'Right E.'])
+    plt.show()
 
 
 def running_average(x, N):
@@ -21,8 +60,8 @@ env = gym.make('LunarLander-v2')
 env.reset()
 
 # Parameters
-N_episodes = 200                             # Number of episodes
-discount_factor = 0.99                        # Value of the discount factor
+N_episodes = 500                             # Number of episodes
+discount_factor = 0.99                       # Value of the discount factor
 n_ep_running_average = 50                    # Running average of 50 episodes
 n_actions = env.action_space.n               # Number of available actions
 dim_state = len(env.observation_space.high)  # State dimensionality
@@ -109,7 +148,7 @@ for i in EPISODES:
         total_episode_reward += reward
 
         # Perform learning step for the agent
-        loss = agent.learn()
+        loss = agent.learn(combined=True)
         total_episode_loss += loss
         loss_list.append(loss)
 
@@ -141,3 +180,81 @@ for i in EPISODES:
             running_average(episode_reward_list, n_ep_running_average)[-1],
             running_average(episode_number_of_steps, n_ep_running_average)[-1]))
 
+# Save the network
+# torch.save(agent.network, 'neural-network-1.pth')
+# Plot Rewards and steps
+fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(16, 9))
+ax[0].plot([i for i in range(1, N_episodes+1)], episode_reward_list, label='Episode reward')
+ax[0].plot([i for i in range(1, N_episodes+1)], running_average(
+    episode_reward_list, n_ep_running_average), label='Avg. episode reward')
+ax[0].set_xlabel('Episodes')
+ax[0].set_ylabel('Total reward')
+ax[0].set_title('Total Reward vs Episodes')
+ax[0].legend()
+ax[0].grid(alpha=0.3)
+
+ax[1].plot([i for i in range(1, N_episodes+1)], episode_number_of_steps, label='Steps per episode')
+ax[1].plot([i for i in range(1, N_episodes+1)], running_average(
+    episode_number_of_steps, n_ep_running_average), label='Avg. number of steps per episode')
+ax[1].set_xlabel('Episodes')
+ax[1].set_ylabel('Total number of steps')
+ax[1].set_title('Total number of steps vs Episodes')
+ax[1].legend()
+ax[1].grid(alpha=0.3)
+
+plt.figure()
+plt.plot(eps_list)
+plt.title("Epsilon value over episodes")
+plt.ylabel("Epsilon")
+plt.xlabel("Episodes")
+plt.grid(alpha=0.3)
+plt.show()
+
+# Create 3D plots for max and argmax of Q-function
+model = torch.load('neural-network-8.pth')
+plot_q_values(model)
+
+# Compare Q-network with random agent
+env.reset()
+random_agent = RandomAgent(n_actions)
+
+# Parameters
+N_EPISODES = 50            # Number of episodes to run for trainings
+
+# Reward
+episode_reward_list = []  # Used to store episodes reward
+
+# Simulate episodes
+EPISODES = trange(N_EPISODES, desc='Episode: ', leave=True)
+for i in EPISODES:
+    EPISODES.set_description("Episode {}".format(i))
+    # Reset enviroment data
+    done = False
+    state = env.reset()
+    total_episode_reward = 0.
+    while not done:
+        # Get next state and reward.  The done variable
+        # will be True if you reached the goal position,
+        # False otherwise
+        action = random_agent.forward(state)
+        next_state, reward, done, _ = env.step(action)
+
+        # Update episode reward
+        total_episode_reward += reward
+
+        # Update state for next iteration
+        state = next_state
+
+    # Append episode reward
+    episode_reward_list.append(total_episode_reward)
+
+    # Close environment
+    env.close()
+
+avg_reward = np.mean(episode_reward_list)
+confidence = np.std(episode_reward_list) * 1.96 / np.sqrt(N_EPISODES)
+
+
+print('Policy achieves an average total reward of {:.1f} +/- {:.1f} with confidence 95%.'.format(
+                avg_reward,
+                confidence))

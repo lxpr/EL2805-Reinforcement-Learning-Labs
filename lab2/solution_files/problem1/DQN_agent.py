@@ -72,8 +72,12 @@ class ReplayBuffer:
         self.size = min(self.size + 1, self.max_size)
         self.index = (self.index + 1) % self.max_size
 
-    def sample(self, batch_size):
-        indices = self.rng.choice(self.size, batch_size, replace=False)
+    def sample(self, batch_size, combined=False):
+        if combined:
+            indices = self.rng.choice(self.size, batch_size - 1, replace=False)
+            indices = np.append(indices, self.index - 1)
+        else:
+            indices = self.rng.choice(self.size, batch_size, replace=False)
         return [self.buffer[index] for index in indices]
 
 
@@ -134,12 +138,12 @@ class DQNAgent(Agent):
         self.last_action = output_tensor.max(1)[1].item()
         return self.last_action
 
-    def learn(self):
+    def learn(self, combined=False):
         if self.buffer.size < 5*self.batch_size:
             return 0
         # Perform learning step for the network
         # Reset gradients
-        batch = self.buffer.sample(self.batch_size)
+        batch = self.buffer.sample(self.batch_size, combined=combined)
 
         # Get targets for the batch
         y = torch.tensor(np.array([exp['next_state']
