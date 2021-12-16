@@ -3,7 +3,7 @@ import gym
 import torch
 import matplotlib.pyplot as plt
 from tqdm import trange
-from DQN_agent import DQNAgent, RandomAgent
+from DQN_agent import DQNAgent, RandomAgent, NeuralNet
 
 
 def plot_q_values(network, num_step=100):
@@ -15,7 +15,8 @@ def plot_q_values(network, num_step=100):
     states[:, 1] = Y.flatten()
     states[:, 4] = W.flatten()
 
-    values = network(torch.tensor(states, dtype=torch.float32, requires_grad=False))
+    values = network(torch.tensor(
+        states, dtype=torch.float32, requires_grad=False))
     max_values, argmax_values = values.max(1)
 
     max_Q = max_values.detach().numpy().reshape((num_step, num_step))
@@ -83,178 +84,197 @@ neurons = 64                                 # Number of neurons in hidden
 # layers of neural nets
 
 
-# We will use these variables to compute the average episodic reward and
-# the average number of steps per episode
+def training_process():
+    # Training process
 
-episode_reward_list = []       # this list contains the total reward per episode
-episode_number_of_steps = []   # this list contains the number of steps per episode
-episode_loss_list = []
-loss_list = []
-eps_list = []
-updates = 0
+    # We will use these variables to compute the average episodic reward and
+    # the average number of steps per episode
 
+    episode_reward_list = []       # this list contains the total reward per episode
+    episode_number_of_steps = []   # this list contains the number of steps per episode
+    episode_loss_list = []
+    loss_list = []
+    eps_list = []
+    updates = 0
 
-# Training process
 
 # trange is an alternative to range in python, from the tqdm library
 # It shows a nice progression bar that you can update with useful information
-#agent = RandomAgent(n_actions)
-agent = DQNAgent(neurons, n_actions, dim_state, lr,
-                 discount_factor, train_batch, clip_val, max_size=max_size)
-agent.initialize_buffer(buffer_init, env)
+# agent = RandomAgent(n_actions)
+    agent = DQNAgent(neurons, n_actions, dim_state, lr,
+                     discount_factor, train_batch, clip_val, max_size=max_size)
+    agent.initialize_buffer(buffer_init, env)
 
-EPISODES = trange(N_episodes, desc='Episode: ', leave=True)
-steps = 0
+    EPISODES = trange(N_episodes, desc='Episode: ', leave=True)
+    steps = 0
 
-for i in EPISODES:
-    # Reset enviroment data and initialize variables
-    done = False
-    state = env.reset()
-    total_episode_reward = 0.
-    total_episode_loss = 0.
-    t = 0
-    while not done:
+    for i in EPISODES:
+        # Reset enviroment data and initialize variables
+        done = False
+        state = env.reset()
+        total_episode_reward = 0.
+        total_episode_loss = 0.
+        t = 0
+        while not done:
 
-        if exponential:
-            # Calculate epsilon value, exponential annealing
-            if i >= round(start_annealing):
-                epsilon = max(epsilon_min, epsilon_max*(epsilon_min/epsilon_max)
-                              ** ((i-start_annealing)/(stop_annealing-start_annealing-1)))
+            if exponential:
+                # Calculate epsilon value, exponential annealing
+                if i >= round(start_annealing):
+                    epsilon = max(epsilon_min, epsilon_max*(epsilon_min/epsilon_max)
+                                  ** ((i-start_annealing)/(stop_annealing-start_annealing-1)))
+                else:
+                    epsilon = epsilon_max
+
             else:
-                epsilon = epsilon_max
+                # Calculate epsilon value, linear annealing
+                if i >= round(start_annealing):
+                    epsilon = max(epsilon_min, epsilon_max - (epsilon_max-epsilon_min)
+                                  * (i-start_annealing)/(stop_annealing-start_annealing-1))
+                else:
+                    epsilon = epsilon_max
 
-        else:
-            # Calculate epsilon value, linear annealing
-            if i >= round(start_annealing):
-                epsilon = max(epsilon_min, epsilon_max - (epsilon_max-epsilon_min)
-                              * (i-start_annealing)/(stop_annealing-start_annealing-1))
-            else:
-                epsilon = epsilon_max
+            # Take a random action
+            action = agent.forward(state, epsilon)
 
-        # Take a random action
-        action = agent.forward(state, epsilon)
+            # Get next state and reward.  The done variable
+            # will be True if you reached the goal position,
+            # False otherwise
+            next_state, reward, done, _ = env.step(action)
 
-        # Get next state and reward.  The done variable
-        # will be True if you reached the goal position,
-        # False otherwise
-        next_state, reward, done, _ = env.step(action)
+            # Append experience to buffer
+            experience = {'state': state, 'action': action,
+                          'reward': reward, 'next_state': next_state, 'done': done}
+            agent.buffer.append(experience)
 
-        # Append experience to buffer
-        experience = {'state': state, 'action': action,
-                      'reward': reward, 'next_state': next_state, 'done': done}
-        agent.buffer.append(experience)
+            # Update episode reward
+            total_episode_reward += reward
 
-        # Update episode reward
-        total_episode_reward += reward
+            # Perform learning step for the agent
+            loss = agent.learn(combined=True)
+            total_episode_loss += loss
+            loss_list.append(loss)
 
-        # Perform learning step for the agent
-        loss = agent.learn(combined=True)
-        total_episode_loss += loss
-        loss_list.append(loss)
+            # Update target if enough steps have passed
+            if steps % update_freq == 0:
+                agent.update_target()
+                updates += 1
 
-        # Update target if enough steps have passed
-        if steps % update_freq == 0:
-            agent.update_target()
-            updates += 1
+            # Update state for next iteration
+            state = next_state
+            t += 1
+            steps += 1
 
-        # Update state for next iteration
-        state = next_state
-        t += 1
-        steps += 1
+        # Append episode reward and total number of steps
+        episode_reward_list.append(total_episode_reward)
+        episode_number_of_steps.append(t)
+        eps_list.append(epsilon)
+        episode_loss_list.append(total_episode_loss)
 
-    # Append episode reward and total number of steps
-    episode_reward_list.append(total_episode_reward)
-    episode_number_of_steps.append(t)
-    eps_list.append(epsilon)
-    episode_loss_list.append(total_episode_loss)
+        # Close environment
+        env.close()
 
-    # Close environment
-    env.close()
+        # Updates the tqdm update bar with fresh information
+        # (episode number, total reward of the last episode, total number of Steps
+        # of the last episode, average reward, average number of steps)
+        EPISODES.set_description(
+            "Episode {} - Reward/Steps: {:.1f}/{} - Avg. Reward/Steps: {:.1f}/{}".format(
+                i, total_episode_reward, t,
+                running_average(episode_reward_list,
+                                n_ep_running_average)[-1],
+                running_average(episode_number_of_steps, n_ep_running_average)[-1]))
 
-    # Updates the tqdm update bar with fresh information
-    # (episode number, total reward of the last episode, total number of Steps
-    # of the last episode, average reward, average number of steps)
-    EPISODES.set_description(
-        "Episode {} - Reward/Steps: {:.1f}/{} - Avg. Reward/Steps: {:.1f}/{}".format(
-            i, total_episode_reward, t,
-            running_average(episode_reward_list, n_ep_running_average)[-1],
-            running_average(episode_number_of_steps, n_ep_running_average)[-1]))
+    # Save the network
+    # torch.save(agent.network, 'neural-network-1.pth')
+    # Plot Rewards and steps
+    fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(16, 9))
+    ax[0].plot([i for i in range(1, N_episodes+1)],
+               episode_reward_list, label='Episode reward')
+    ax[0].plot([i for i in range(1, N_episodes+1)], running_average(
+        episode_reward_list, n_ep_running_average), label='Avg. episode reward')
+    ax[0].set_xlabel('Episodes')
+    ax[0].set_ylabel('Total reward')
+    ax[0].set_title('Total Reward vs Episodes')
+    ax[0].legend()
+    ax[0].grid(alpha=0.3)
 
-# Save the network
-# torch.save(agent.network, 'neural-network-1.pth')
-# Plot Rewards and steps
-fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(16, 9))
-ax[0].plot([i for i in range(1, N_episodes+1)], episode_reward_list, label='Episode reward')
-ax[0].plot([i for i in range(1, N_episodes+1)], running_average(
-    episode_reward_list, n_ep_running_average), label='Avg. episode reward')
-ax[0].set_xlabel('Episodes')
-ax[0].set_ylabel('Total reward')
-ax[0].set_title('Total Reward vs Episodes')
-ax[0].legend()
-ax[0].grid(alpha=0.3)
+    ax[1].plot([i for i in range(1, N_episodes+1)],
+               episode_number_of_steps, label='Steps per episode')
+    ax[1].plot([i for i in range(1, N_episodes+1)], running_average(
+        episode_number_of_steps, n_ep_running_average), label='Avg. number of steps per episode')
+    ax[1].set_xlabel('Episodes')
+    ax[1].set_ylabel('Total number of steps')
+    ax[1].set_title('Total number of steps vs Episodes')
+    ax[1].legend()
+    ax[1].grid(alpha=0.3)
 
-ax[1].plot([i for i in range(1, N_episodes+1)], episode_number_of_steps, label='Steps per episode')
-ax[1].plot([i for i in range(1, N_episodes+1)], running_average(
-    episode_number_of_steps, n_ep_running_average), label='Avg. number of steps per episode')
-ax[1].set_xlabel('Episodes')
-ax[1].set_ylabel('Total number of steps')
-ax[1].set_title('Total number of steps vs Episodes')
-ax[1].legend()
-ax[1].grid(alpha=0.3)
-
-plt.figure()
-plt.plot(eps_list)
-plt.title("Epsilon value over episodes")
-plt.ylabel("Epsilon")
-plt.xlabel("Episodes")
-plt.grid(alpha=0.3)
-plt.show()
-
-# Create 3D plots for max and argmax of Q-function
-model = torch.load('neural-network-8.pth')
-plot_q_values(model)
-
-# Compare Q-network with random agent
-env.reset()
-random_agent = RandomAgent(n_actions)
-
-# Parameters
-N_EPISODES = 50            # Number of episodes to run for trainings
-
-# Reward
-episode_reward_list = []  # Used to store episodes reward
-
-# Simulate episodes
-EPISODES = trange(N_EPISODES, desc='Episode: ', leave=True)
-for i in EPISODES:
-    EPISODES.set_description("Episode {}".format(i))
-    # Reset enviroment data
-    done = False
-    state = env.reset()
-    total_episode_reward = 0.
-    while not done:
-        # Get next state and reward.  The done variable
-        # will be True if you reached the goal position,
-        # False otherwise
-        action = random_agent.forward(state)
-        next_state, reward, done, _ = env.step(action)
-
-        # Update episode reward
-        total_episode_reward += reward
-
-        # Update state for next iteration
-        state = next_state
-
-    # Append episode reward
-    episode_reward_list.append(total_episode_reward)
-
-    # Close environment
-    env.close()
-
-avg_reward = np.mean(episode_reward_list)
-confidence = np.std(episode_reward_list) * 1.96 / np.sqrt(N_EPISODES)
+    plt.figure()
+    plt.plot(eps_list)
+    plt.title("Epsilon value over episodes")
+    plt.ylabel("Epsilon")
+    plt.xlabel("Episodes")
+    plt.grid(alpha=0.3)
+    plt.show()
 
 
-print('Policy achieves an average total reward of {:.1f} +/- {:.1f} with confidence 95%.'.format(
-                avg_reward,
-                confidence))
+def compare():
+    # Compare Q-network with random agent
+    env.reset()
+    random_agent = RandomAgent(n_actions)
+
+    # Parameters
+    N_EPISODES = 50            # Number of episodes to run for trainings
+
+    # Reward
+    episode_reward_list = []  # Used to store episodes reward
+
+    # Simulate episodes
+    EPISODES = trange(N_EPISODES, desc='Episode: ', leave=True)
+    for i in EPISODES:
+        EPISODES.set_description("Episode {}".format(i))
+        # Reset enviroment data
+        done = False
+        state = env.reset()
+        total_episode_reward = 0.
+        while not done:
+            # Get next state and reward.  The done variable
+            # will be True if you reached the goal position,
+            # False otherwise
+            action = random_agent.forward(state)
+            next_state, reward, done, _ = env.step(action)
+
+            # Update episode reward
+            total_episode_reward += reward
+
+            # Update state for next iteration
+            state = next_state
+
+        # Append episode reward
+        episode_reward_list.append(total_episode_reward)
+
+        # Close environment
+        env.close()
+
+    avg_reward = np.mean(episode_reward_list)
+    confidence = np.std(episode_reward_list) * 1.96 / np.sqrt(N_EPISODES)
+
+    print('Policy achieves an average total reward of {:.1f} +/- {:.1f} with confidence 95%.'.format(
+        avg_reward,
+        confidence))
+
+
+if __name__ == "__main__":
+
+    """
+    Mode can be "Training, Compare or Q-values
+    """
+
+    modes = ("Training", "Compare", "Q-Values")
+    mode = modes[2]
+
+    if mode == "Q-Values":
+        model = torch.load('neural-network-1.pth')
+        plot_q_values(model)
+    elif mode == "Training":
+        training_process()
+    elif mode == "Compare":
+        compare()
