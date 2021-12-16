@@ -3,6 +3,7 @@ import gym
 import torch
 import matplotlib.pyplot as plt
 from tqdm import trange
+from DDPG_soft_updates import soft_updates
 from DDPG_agent import DDPGAgent, RandomAgent
 
 
@@ -55,31 +56,30 @@ def running_average(x, N):
     return y
 
 
-# Import and initialize the discrete Lunar Laner Environment
-env = gym.make('LunarLander-v2')
+# Import and initialize the discrete Lunar Lander Environment
+env = gym.make('LunarLanderContinuous-v2')
 env.reset()
 
 # Parameters
-N_episodes = 500                             # Number of episodes
+N_episodes = 300                             # Number of episodes
 discount_factor = 0.99                       # Value of the discount factor
 n_ep_running_average = 50                    # Running average of 50 episodes
-n_actions = env.action_space.n               # Number of available actions
+m = len(env.action_space.high) # dimensionality of the action
 dim_state = len(env.observation_space.high)  # State dimensionality
 
-max_size = 10000                             # Maximum length of replay buffer
-buffer_init = 0.2                            # Percentage of buffer which is
+max_size = 30000                             # Maximum length of replay buffer
+buffer_init = 1                           # Percentage of buffer which is
 # filled before learning starts
 train_batch = 64                             # Amount of experiences in a batch
-# Update frequency of target network
-update_freq = int(1*max_size/train_batch)
-lr = 1e-3                                    # Learning rate
+# Update frequency of actor and target network
+update_freq = 2
+lr_actor = 5e-5                                    # Learning rate
+lr_critic = 5e-4                                    # Learning rate
 clip_val = 1                                 # Gradient clipping value
-epsilon_max = 0.9                            # Exploration parameter max,min
-epsilon_min = 0.1
-start_annealing = 0*N_episodes             # Percentage of episodes when
-stop_annealing = 0.9*N_episodes              # learning starts and ends
 exponential = True                           # Exponential decay, else linear
-neurons = 64                                 # Number of neurons in hidden
+neurons_1 = 400                                 # Number of neurons in hidden layer 1
+neurons_2 = 200                                 # Number of neurons in hidden layer 2
+tau = 1e-3                                      # Soft update parameter
 # layers of neural nets
 
 
@@ -89,8 +89,9 @@ neurons = 64                                 # Number of neurons in hidden
 episode_reward_list = []       # this list contains the total reward per episode
 episode_number_of_steps = []   # this list contains the number of steps per episode
 episode_loss_list = []
+# episode_policy_loss_list = []
 loss_list = []
-eps_list = []
+# policy_loss_list = []
 updates = 0
 
 
@@ -99,7 +100,7 @@ updates = 0
 # trange is an alternative to range in python, from the tqdm library
 # It shows a nice progression bar that you can update with useful information
 #agent = RandomAgent(n_actions)
-agent = DDPGAgent(neurons, n_actions, dim_state, lr,
+agent = DDPGAgent(neurons_1, neurons_2, m, dim_state, lr_actor, lr_critic,
                  discount_factor, train_batch, clip_val, max_size=max_size)
 agent.initialize_buffer(buffer_init, env)
 
@@ -107,32 +108,17 @@ EPISODES = trange(N_episodes, desc='Episode: ', leave=True)
 steps = 0
 
 for i in EPISODES:
-    # Reset enviroment data and initialize variables
+    # Reset environment data and initialize variables
     done = False
     state = env.reset()
     total_episode_reward = 0.
     total_episode_loss = 0.
+    total_episode_policy_loss = 0.
     t = 0
     while not done:
 
-        if exponential:
-            # Calculate epsilon value, exponential annealing
-            if i >= round(start_annealing):
-                epsilon = max(epsilon_min, epsilon_max*(epsilon_min/epsilon_max)
-                              ** ((i-start_annealing)/(stop_annealing-start_annealing-1)))
-            else:
-                epsilon = epsilon_max
-
-        else:
-            # Calculate epsilon value, linear annealing
-            if i >= round(start_annealing):
-                epsilon = max(epsilon_min, epsilon_max - (epsilon_max-epsilon_min)
-                              * (i-start_annealing)/(stop_annealing-start_annealing-1))
-            else:
-                epsilon = epsilon_max
-
         # Take a random action
-        action = agent.forward(state, epsilon)
+        action = agent.forward(state)
 
         # Get next state and reward.  The done variable
         # will be True if you reached the goal position,
@@ -148,14 +134,19 @@ for i in EPISODES:
         total_episode_reward += reward
 
         # Perform learning step for the agent
-        loss = agent.learn(combined=True)
-        total_episode_loss += loss
-        loss_list.append(loss)
-
-        # Update target if enough steps have passed
+        # Update actor and target if enough steps have passed
         if steps % update_freq == 0:
-            agent.update_target()
+            loss, policy_loss = agent.learn(combined=False, actor_update=True)
+            soft_updates(agent.actor, agent.actor_target, tau)
+            soft_updates(agent.critic, agent.critic_target, tau)
+
             updates += 1
+        else:
+            loss, policy_loss = agent.learn(combined=False, actor_update=False)
+        total_episode_loss += loss
+        # total_episode_policy_loss += policy_loss
+        loss_list.append(loss)
+        # policy_loss_list.append(policy_loss)
 
         # Update state for next iteration
         state = next_state
@@ -165,8 +156,8 @@ for i in EPISODES:
     # Append episode reward and total number of steps
     episode_reward_list.append(total_episode_reward)
     episode_number_of_steps.append(t)
-    eps_list.append(epsilon)
     episode_loss_list.append(total_episode_loss)
+    # episode_policy_loss_list.append(total_episode_policy_loss)
 
     # Close environment
     env.close()
@@ -181,7 +172,7 @@ for i in EPISODES:
             running_average(episode_number_of_steps, n_ep_running_average)[-1]))
 
 # Save the network
-# torch.save(agent.network, 'neural-network-1.pth')
+torch.save(agent.actor, 'neural-network-2-actor.pth')
 # Plot Rewards and steps
 fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(16, 9))
 ax[0].plot([i for i in range(1, N_episodes+1)], episode_reward_list, label='Episode reward')
@@ -201,11 +192,4 @@ ax[1].set_ylabel('Total number of steps')
 ax[1].set_title('Total number of steps vs Episodes')
 ax[1].legend()
 ax[1].grid(alpha=0.3)
-
-plt.figure()
-plt.plot(eps_list)
-plt.title("Epsilon value over episodes")
-plt.ylabel("Epsilon")
-plt.xlabel("Episodes")
-plt.grid(alpha=0.3)
 plt.show()

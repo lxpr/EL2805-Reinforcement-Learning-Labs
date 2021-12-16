@@ -19,6 +19,7 @@ import numpy as np
 import gym
 import torch
 from tqdm import trange
+from DDPG_agent import ActorNeuralNet
 
 def running_average(x, N):
     ''' Function used to compute the running average
