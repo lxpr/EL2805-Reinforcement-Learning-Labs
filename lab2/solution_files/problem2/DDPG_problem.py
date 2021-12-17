@@ -54,11 +54,12 @@ agent = RandomAgent(m)
 EPISODES = trange(N_episodes, desc='Episode: ', leave=True)
 
 for i in EPISODES:
-    # Reset enviroment data
+    # Reset environment data
     done = False
     state = env.reset()
     total_episode_reward = 0.
     t = 0
+    agent.n_t = np.zeros(agent.m)
     while not done:
         # Take a random action
         action = agent.forward(state)

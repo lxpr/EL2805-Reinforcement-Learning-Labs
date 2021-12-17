@@ -19,6 +19,7 @@ import numpy as np
 import gym
 import torch
 from tqdm import trange
+from DDPG_agent import ActorNeuralNet
 
 def running_average(x, N):
     ''' Function used to compute the running average
@@ -55,7 +56,7 @@ print('Checking solution...')
 EPISODES = trange(N_EPISODES, desc='Episode: ', leave=True)
 for i in EPISODES:
     EPISODES.set_description("Episode {}".format(i))
-    # Reset enviroment data
+    # Reset environment data
     done = False
     state = env.reset()
     total_episode_reward = 0.

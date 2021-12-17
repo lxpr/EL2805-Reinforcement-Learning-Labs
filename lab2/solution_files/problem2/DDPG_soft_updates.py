@@ -33,6 +33,6 @@ def soft_updates(network: nn.Module,
     """
     tgt_state = target_network.state_dict()
     for k, v in network.state_dict().items():
-        tgt_state[k] = (1 - tau)  * tgt_state[k]  + tau * v
+        tgt_state[k] = (1 - tau) * tgt_state[k] + tau * v
     target_network.load_state_dict(tgt_state)
     return target_network
