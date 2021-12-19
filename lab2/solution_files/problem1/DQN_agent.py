@@ -17,6 +17,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
+from collections import namedtuple
 
 
 class Agent(object):
@@ -29,6 +30,7 @@ class Agent(object):
             n_actions (int): where we store the number of actions
             last_action (int): last action taken by the agent
     '''
+
     def __init__(self, n_actions: int):
         self.n_actions = n_actions
         self.last_action = None
@@ -44,6 +46,7 @@ class Agent(object):
 
 class RandomAgent(Agent):
     ''' Agent taking actions uniformly at random, child of the class Agent'''
+
     def __init__(self, n_actions: int):
         super(RandomAgent, self).__init__(n_actions)
 
@@ -56,6 +59,10 @@ class RandomAgent(Agent):
         '''
         self.last_action = np.random.randint(0, self.n_actions)
         return self.last_action
+
+
+Experience = namedtuple(
+    'Experience', 'state, action, next_state, reward, done')
 
 
 class ReplayBuffer:
@@ -74,11 +81,12 @@ class ReplayBuffer:
 
     def sample(self, batch_size, combined=False):
         if combined:
-            indices = self.rng.choice(self.size, batch_size - 1, replace=False)
-            indices = np.append(indices, self.index - 1)
+            indices = self.rng.choice(self.size, batch_size-1, replace=False)
+            np.hstack((indices, -1))
         else:
             indices = self.rng.choice(self.size, batch_size, replace=False)
-        return [self.buffer[index] for index in indices]
+        batch = [self.buffer[index] for index in indices]
+        return Experience(*zip(*batch))
 
 
 class NeuralNet(nn.Module):
@@ -97,10 +105,6 @@ class NeuralNet(nn.Module):
         y1 = self.act1(self.linear1(x))
 
         y2 = self.act2(self.linear2(y1))
-
-        out = self.linear3(y2)
-
-        return out
 
         out = self.linear3(y2)
 
@@ -138,38 +142,33 @@ class DQNAgent(Agent):
         self.last_action = output_tensor.max(1)[1].item()
         return self.last_action
 
-    def learn(self, combined=False):
+    def learn(self, combined):
         if self.buffer.size < 5*self.batch_size:
             return 0
         # Perform learning step for the network
         # Reset gradients
-        batch = self.buffer.sample(self.batch_size, combined=combined)
+        batch = self.buffer.sample(self.batch_size, combined)
 
         # Get targets for the batch
-        y = torch.tensor(np.array([exp['next_state']
-                         for exp in batch]), requires_grad=False)
+        y = torch.tensor(np.array(batch.next_state), requires_grad=False)
         y = self.target(y)
 
         # Indicator of whether episode finished with each experience
-        d = torch.tensor(
-            np.array([not exp['done'] for exp in batch]), requires_grad=False)
+        d = torch.tensor(np.array(batch.done), requires_grad=False)
         # Reward for each experience
-        r = torch.tensor(np.array([exp['reward']
-                         for exp in batch]), requires_grad=False)
+        r = torch.tensor(np.array(batch.reward), requires_grad=False)
         # Target values are r if the episode terminates in an experience,
         # and are r + gamma*max_a Q(s_t,a) if not
-        y = r + self.discount_factor*d*y.max(1)[0]
+        y = r + self.discount_factor*(1-1*d)*y.max(1)[0]
         y = y.float().detach()
 
         self.opt.zero_grad()
 
         # Get a batch of Q(s_t, a_t) for every (s_t, a_t) in batch
-        x = torch.tensor(np.array([exp['state']
-                         for exp in batch]), requires_grad=True)
+        x = torch.tensor(np.array(batch.state), requires_grad=True)
         x = self.network(x)
-        x = x.gather(1, torch.tensor([[exp['action']]
-                     for exp in batch])).reshape(-1)
-        #x = torch.tensor([x[i, exp['action']] for i, exp in enumerate(batch)], requires_grad=True)
+        actions = torch.tensor(batch.action).unsqueeze(-1)
+        x = x.gather(1, actions).squeeze()
 
         # Calculate MSE loss and perform backward step
         loss = nn.functional.mse_loss(x, y)
@@ -194,7 +193,6 @@ class DQNAgent(Agent):
             # False otherwise
             next_state, reward, done, _ = env.step(action)
             # Append experience to buffer
-            experience = {'state': state, 'action': action,
-                          'reward': reward, 'next_state': next_state, 'done': done}
+            experience = Experience(state, action, next_state, reward, done)
             self.buffer.append(experience)
             state = next_state
