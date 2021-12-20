@@ -7,7 +7,7 @@ from DQN_agent import DQNAgent, RandomAgent, NeuralNet
 from collections import namedtuple
 import os.path
 import json
-from DQN_check_solution import check_solution
+from check_solution_david import check_solution
 from json.decoder import JSONDecodeError
 
 Experience = namedtuple(
