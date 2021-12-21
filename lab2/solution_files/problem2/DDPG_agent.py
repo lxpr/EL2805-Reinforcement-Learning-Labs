@@ -140,18 +140,24 @@ class DDPGAgent(Agent):
                  max_size=10000, mu=0.15, sigma=0.2):
         super(DDPGAgent, self).__init__(m)
         self.rng = np.random.default_rng()
-        self.actor = ActorNeuralNet(neurons_1=neurons_1, neurons_2=neurons_2, input=dim_state, output=m)
-        self.actor_target = ActorNeuralNet(neurons_1=neurons_1, neurons_2=neurons_2, input=dim_state, output=m)
-        self.critic = CriticNeuralNet(neurons_1=neurons_1, neurons_2=neurons_2, states=dim_state, actions=m)
-        self.critic_target = CriticNeuralNet(neurons_1=neurons_1, neurons_2=neurons_2, states=dim_state, actions=m)
+        self.actor = ActorNeuralNet(
+            neurons_1=neurons_1, neurons_2=neurons_2, input=dim_state, output=m)
+        self.actor_target = ActorNeuralNet(
+            neurons_1=neurons_1, neurons_2=neurons_2, input=dim_state, output=m)
+        self.critic = CriticNeuralNet(
+            neurons_1=neurons_1, neurons_2=neurons_2, states=dim_state, actions=m)
+        self.critic_target = CriticNeuralNet(
+            neurons_1=neurons_1, neurons_2=neurons_2, states=dim_state, actions=m)
         self.update_actor_target()
         self.update_critic_target()
         self.lr_actor = lr_actor
         self.lr_critic = lr_critic
         self.discount_factor = discount_factor
         self.buffer = ReplayBuffer(max_size=max_size)
-        self.opt_actor = torch.optim.Adam(self.actor.parameters(), lr=self.lr_actor)
-        self.opt_critic = torch.optim.Adam(self.critic.parameters(), lr=self.lr_critic)
+        self.opt_actor = torch.optim.Adam(
+            self.actor.parameters(), lr=self.lr_actor)
+        self.opt_critic = torch.optim.Adam(
+            self.critic.parameters(), lr=self.lr_critic)
         self.batch_size = batch_size
         self.clip_val = clip_val
         self.mu = mu
@@ -200,7 +206,6 @@ class DDPGAgent(Agent):
         a = torch.tensor(np.array([exp['action']
                                    for exp in batch]), requires_grad=True, dtype=torch.float32)
         x = self.critic([s, a])
-
 
         # Calculate MSE loss and perform backward step
         loss = nn.functional.mse_loss(x, y)
